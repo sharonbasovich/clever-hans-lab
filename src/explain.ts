@@ -96,8 +96,10 @@ export interface Ablation {
   bgDrop: number;
   fgDrop: number;
   /** bgDrop / (bgDrop + fgDrop) in [0,1]: how much of the model's accuracy
-   *  lives in the background rather than the shape. ~1 = shortcut; ~0 = shape. */
-  bgReliance: number;
+   *  lives in the background rather than the shape. ~1 = shortcut; ~0 = shape.
+   *  null when neither ablation cost the model anything — i.e. it learned
+   *  nothing measurable, so there is no reliance to attribute. */
+  bgReliance: number | null;
 }
 
 // Counterfactual ablation — the headline "did it cheat" measurement. Unlike
@@ -157,7 +159,9 @@ export function ablationReliance(model: tf.LayersModel, world: World, k = 64): A
     accNoFg,
     bgDrop,
     fgDrop,
-    bgReliance: denom > 0 ? bgDrop / denom : 0.5,
+    // A denominator near zero means the model shrugged at both ablations —
+    // it learned nothing to measure. Report null, not a fake 0.5.
+    bgReliance: denom > 0.02 ? bgDrop / denom : null,
   };
 }
 

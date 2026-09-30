@@ -56,33 +56,36 @@ export async function runDemo(session: Session): Promise<void> {
     click('.btn'); // verdict -> L3
     await sleep(4000 * D);
 
-    // In L3, set rho low + neutral samples, then retrain.
+    // In L3, pull the cheat strength to the floor and max out neutral
+    // samples — the design the harness shows wins on a strict reversal.
     const sliders = document.querySelectorAll<HTMLInputElement>('input[type=range]');
     if (sliders[0]) {
-      sliders[0].value = '0.6';
+      sliders[0].value = '0.5';
       sliders[0].dispatchEvent(new Event('input'));
     }
     if (sliders[1]) {
-      sliders[1].value = '0.5';
+      sliders[1].value = '0.6';
       sliders[1].dispatchEvent(new Event('input'));
     }
-    caption('Lower the cheat strength, add neutral images, stay under budget — retrain.', 'l3tune');
+    caption('Drop the cheat strength, fill the rest with neutral images — retrain.', 'l3tune');
     await sleep(3000 * D);
     click('.btn'); // "Retrain on my data →"
     await sleep(1000 * D);
     click('.btn'); // "Start training" on the retrain screen
-    await waitFor(() => location.hash === '#/exam', 60000);
+    // L3 trains the real 1600-image budget — allow real CPU time.
+    await waitFor(() => location.hash === '#/exam', 240000);
     const ev3 = session.evaluation!;
-    caption(`Flipped test after your fix: ${pct(ev3.flipped.acc)}.`, 'l3exam');
-    await sleep(11000 * D);
+    const thr = (await import('./game/levels.ts')).L3_FLIPPED_THRESHOLD;
+    caption(`Full reversal after your fix: ${pct(ev3.flipped.acc)} (bar: ${pct(thr)}).`, 'l3exam');
+    await sleep(8000 * D);
 
     location.hash = '#/lab';
-    caption('Reproducible: 5 seeds, confidence intervals, code on GitHub.', 'lab');
-    await sleep(11000 * D);
+    caption('Reproducible: 8 seeds, per-seed results and gates, code on GitHub.', 'lab');
+    await sleep(9000 * D);
 
     location.hash = '#/teacher';
-    caption('Free, no login, 20-minute lesson included. Clever Hans Lab: don\'t ask if AI is right — ask why.', 'teacher');
-    await sleep(9000 * D);
+    caption('Free, no login, lesson plan included. Clever Hans Lab: don\'t ask if AI is right — ask why.', 'teacher');
+    await sleep(7000 * D);
 
     document.body.dataset.demoStage = 'done';
     caption('Clever Hans Lab — github.com/sharonbasovich/clever-hans-lab', 'done');

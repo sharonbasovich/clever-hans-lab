@@ -218,6 +218,12 @@ table.results th { color: var(--muted); font-weight: 600; }
   font-size: 0.9rem;
 }
 
+/* In demo mode the caption bar is fixed — reserve space so it never covers
+   the content it narrates. */
+body:has(.caption-bar:not([hidden])) {
+  padding-bottom: 120px;
+}
+
 .caption-bar {
   position: fixed;
   left: 50%; bottom: 26px; transform: translateX(-50%);

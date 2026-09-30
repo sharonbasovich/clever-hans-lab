@@ -14,7 +14,11 @@
     "harness": "tsx scripts/harness.ts",
     "harness:smoke": "tsx scripts/harness.ts --smoke",
     "e2e": "playwright test",
-    "demo": "tsx scripts/record-demo.ts"
+    "demo": "tsx scripts/record-demo.ts",
+    "verify": "tsx scripts/verify-results.ts"
+  },
+  "engines": {
+    "node": ">=20 <23"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0"

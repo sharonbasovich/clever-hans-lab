@@ -27,7 +27,7 @@ export async function trainModel(
   world: World,
   opts: TrainOptions,
 ): Promise<TrainHistory> {
-  const { epochs = 8, batchSize = 64, learningRate = 0.01, seed, onEpoch, onBatch, signal } = opts;
+  const { epochs = 8, batchSize = 64, learningRate = 0.005, seed, onEpoch, onBatch, signal } = opts;
   const optimizer = tf.train.adam(learningRate);
   const rng = mulberry32(seed ^ 0xba7c);
   const n = world.n;
@@ -62,12 +62,11 @@ export async function trainModel(
         ysBuf.fill(0, k * NUM_CLASSES, (k + 1) * NUM_CLASSES);
         ysBuf[k * NUM_CLASSES + world.labels[src]] = 1;
       }
-      if (bn < batchSize) {
-        xsBuf.fill(0, bn * IMG_PIXELS * 3);
-        ysBuf.fill(0, bn * NUM_CLASSES);
-      }
-      const xs = tf.tensor4d(xsBuf, [batchSize, 32, 32, 3]);
-      const ys = tf.tensor2d(ysBuf, [batchSize, NUM_CLASSES]);
+      // Tensors are sized to the real batch (bn) — never zero-padded. Padding
+      // would train toward the all-zero label (argMax 0), biasing the model
+      // toward constant predictions and diluting the reported accuracy.
+      const xs = tf.tensor4d(xsBuf.subarray(0, bn * IMG_PIXELS * 3), [bn, 32, 32, 3]);
+      const ys = tf.tensor2d(ysBuf.subarray(0, bn * NUM_CLASSES), [bn, NUM_CLASSES]);
       // One forward pass: reuse the predictions computed inside the cost
       // function for the accuracy readout instead of predicting twice.
       const predsRef: { t: tf.Tensor | null } = { t: null };
@@ -93,8 +92,11 @@ export async function trainModel(
       seen += bn;
       batchIdx++;
       onBatch?.(batchIdx, totalBatches);
-      // Yield so the UI can repaint between batches in the browser.
-      await new Promise((r) => setTimeout(r, 0));
+      // Yield so the UI can repaint. Every few batches is enough — a yield per
+      // batch adds meaningful wall time on the CPU fallback.
+      if (batchIdx % 4 === 0 || b + batchSize >= n) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
     }
     history.losses.push(lossSum / seen);
     history.accs.push(accSum / seen);

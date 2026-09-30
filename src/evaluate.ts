@@ -27,6 +27,13 @@ export function predictLabels(model: tf.LayersModel, world: World, batchSize = 1
   return out;
 }
 
+/** A constant predictor learned nothing — check whether the model emits more
+ *  than one class across the world. */
+export function isConstantPredictor(model: tf.LayersModel, world: World): boolean {
+  const preds = predictLabels(model, world);
+  return new Set(preds).size < 2;
+}
+
 export function evalWorld(model: tf.LayersModel, world: World): SetEval {
   const pred = predictLabels(model, world);
   let correct = 0;

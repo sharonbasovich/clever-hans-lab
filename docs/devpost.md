@@ -47,9 +47,14 @@ budget) and retrain until the network can't cheat.
   patch-occlusion heatmap as supporting evidence.
 - A redesign level where the win threshold is **derived from measured
   results**, not hard-coded.
-- Reproducible science page: a deterministic headless harness evaluates 5
-  seeds × 3 cue strengths plus a shuffled-label null control, with bootstrap
-  CIs and pass/fail gates — all committed to the repo.
+- Reproducible science page: a deterministic headless harness evaluates 8
+  seeds × 3 cue strengths against a strict full reversal, plus a per-seed
+  shuffled-label null control, with bootstrap CIs and pass/fail gates —
+  all committed to the repo and re-verified in CI.
+- The verdict is derived from measured evidence, not scripted: shortcut,
+  honest, undertrained, and inconclusive outcomes each get their own
+  report. A collapsed training run is detected, retried transparently,
+  and disclosed — never hidden.
 - Accessible: full keyboard play, aria-live results, canvas text
   alternatives, reduced-motion, and a colour-independent cue mode
   (stripes + brightness, not hue).
@@ -59,9 +64,10 @@ budget) and retrain until the network can't cheat.
 
 Vite + TypeScript + TensorFlow.js (WebGL, CPU fallback). Fully static —
 no accounts, no backend, no API keys. Deterministic evaluation via
-`@tensorflow/tfjs-node`; Playwright for the e2e test and the captioned
-demo video; GitHub Actions CI (lint, typecheck, unit tests, harness smoke,
-build, e2e); deployed on GitHub Pages.
+`@tensorflow/tfjs-node`; Playwright for the e2e tests and the captioned
+demo video; GitHub Actions CI (lint, typecheck, unit tests, smoke + FULL
+8-seed measured harness, build, results verification, e2e incl. lifecycle
+and 375px); deployed on GitHub Pages.
 
 ## Target users
 
@@ -87,7 +93,7 @@ smoothed). See README for the full list.
 
 - Live demo: https://sharonbasovich.github.io/clever-hans-lab/
 - Source + measured results: https://github.com/sharonbasovich/clever-hans-lab
-- Demo video (108s, captioned): `demo/demo.mp4` in the repo
+- Demo video (~2min, captioned, real training): `demo/demo.mp4` in the repo
 
 ## Screenshots (5)
 
@@ -108,4 +114,6 @@ Sharon Basovich (University of Waterloo) — solo.
 Built with substantial assistance from Devin (Cognition AI): implementation,
 test design, evaluation harness, and documentation drafts. Conception,
 direction, review, and submission decisions are mine. The science is cited
-in-app (Pfungst 1907; Lapuschkin et al. 2019; Geirhos et al. 2020).
+in-app (Pfungst 1907; Lapuschkin et al. 2019; Geirhos et al. 2020; Ribeiro
+et al. 2016 — the snow/husky example; Zech et al. 2018 — hospital-confound
+shortcut).

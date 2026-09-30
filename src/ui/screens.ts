@@ -1,6 +1,8 @@
+import * as tf from '@tensorflow/tfjs';
 import { occlusionMap } from '../explain.ts';
 import { L3, L3_FLIPPED_THRESHOLD, RESULTS } from '../game/levels.ts';
 import type { Session } from '../game/session.ts';
+import { classifyOutcome } from '../game/verdict.ts';
 import { IMG_PIXELS } from '../world.ts';
 import { announce, describeImage, drawAblation, drawHeatmap, drawImage, drawLossChart, el, pct } from './dom.ts';
 import { hansSvg } from './hans.ts';
@@ -55,7 +57,12 @@ export function renderBuild(session: Session, nav: Nav): void {
   const panel = el('section', { class: 'panel' });
   panel.innerHTML = `
     <p class="kicker">Level 1 · Meet Hans</p>
-    <h2>Plant the cheat</h2>
+    <h2>Plant the cheat</h2>`;
+  if (session.notice) {
+    panel.append(el('p', { class: 'note', role: 'status' }, session.notice));
+    session.notice = null;
+  }
+  panel.innerHTML += `
     <p class="lede">Here are ${world.n} code-generated training images. The task is trivial:
     <strong>circle or triangle?</strong> But we rigged the backgrounds —
     <strong style="color:var(--red)">red always means circle</strong>,
@@ -92,11 +99,15 @@ export function renderTrain(session: Session, nav: Nav): void {
   app.innerHTML = '';
   const panel = el('section', { class: 'panel' });
   panel.innerHTML = `
-    <p class="kicker">Level 1 · Meet Hans</p>
+    <p class="kicker">${session.level === 3 ? 'Level 3 · Fix the data' : 'Level 1 · Meet Hans'}</p>
     <h2>Train a real CNN — right here</h2>
     <p class="lede">A small convolutional network (conv → conv → dense) trains on your world
     with TensorFlow.js. The loss curve below is measured, not animated.</p>
   `;
+  if (session.notice) {
+    panel.append(el('p', { class: 'note', role: 'status' }, session.notice));
+    session.notice = null;
+  }
   const chartWrap = el('div', { class: 'chart-wrap' });
   const chart = el('canvas', { role: 'img', 'aria-label': 'Training loss and accuracy per epoch' });
   chartWrap.append(chart);
@@ -113,15 +124,30 @@ export function renderTrain(session: Session, nav: Nav): void {
   app.append(panel);
   focusMain();
 
+  const backend = tf.getBackend();
+  stats.after(
+    el('p', { class: 'hint' },
+      `Backend: ${backend}. Expect ~10–30 s with WebGL; a few minutes if your browser falls back to CPU — the progress bar is real.`),
+  );
+  const t0 = performance.now();
+
   startBtn.addEventListener('click', async () => {
     startBtn.disabled = true;
     startBtn.textContent = 'Training…';
     const losses: number[] = [];
     const accs: number[] = [];
+    let retryNote: HTMLElement | null = null;
     try {
-      await session.train({
+      const history = await session.train({
         onBatch: (b, total) => {
           fill.style.width = `${(b / total) * 100}%`;
+          if (session.retriedAfterCollapse && !retryNote) {
+            retryNote = el('p', { class: 'note', role: 'status' },
+              'First attempt collapsed to a constant predictor (it learned nothing) — reinitialized and retraining. This is reported, not hidden.');
+            panel.append(retryNote);
+            losses.length = 0;
+            accs.length = 0;
+          }
         },
         onEpoch: (e, loss, acc) => {
           losses.push(loss);
@@ -133,10 +159,13 @@ export function renderTrain(session: Session, nav: Nav): void {
           boxes[2].textContent = pct(acc);
         },
       });
+      // null = cancelled or superseded (user navigated away): do nothing.
+      if (history === null) return;
       session.evaluate();
       session.explain();
-      announce(`Training done. Matched accuracy ${pct(session.evaluation!.matched.acc)}, flipped ${pct(session.evaluation!.flipped.acc)}.`);
-      nav('exam');
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
+      announce(`Training done in ${secs}s. Matched accuracy ${pct(session.evaluation!.matched.acc)}, flipped ${pct(session.evaluation!.flipped.acc)}.`);
+      if (location.hash === '#/train') nav('exam');
     } catch (err) {
       console.error(err);
       startBtn.disabled = false;
@@ -164,7 +193,9 @@ export function renderExam(session: Session, nav: Nav): void {
   panel.innerHTML = `
     <p class="kicker">${isL3 ? 'Level 3 · Fix the data' : 'Levels 1–2 · The exam'}</p>
     <h2>Three exams, one confession</h2>
-    <p class="lede">Same task, three held-out test sets — each drawn fresh from code, never seen in training.</p>
+    <p class="lede">Same task, three test sets drawn fresh from the same generator. Honest caveat: a small
+    synthetic space means some test shapes resemble training shapes — the
+    <em>flipped</em> set shares zero geometry+cue combos with training, so it carries the evidence.</p>
   `;
   const grid = el('div', { class: 'exam-grid' });
   const cards = [
@@ -177,7 +208,9 @@ export function renderExam(session: Session, nav: Nav): void {
     {
       name: 'Flipped',
       acc: ev.flipped.acc,
-      desc: 'The cheat is reversed: red now means triangle. If it learned shape, nothing changes.',
+      desc: isL3
+        ? 'Full reversal: the cheat disagrees with the label on every image. Only shape survives.'
+        : 'The cheat is reversed: red now means triangle. If it learned shape, nothing changes.',
       cls: ev.flipped.acc < 0.6 ? 'bad' : 'good',
     },
     {
@@ -198,15 +231,21 @@ export function renderExam(session: Session, nav: Nav): void {
   }
   panel.append(grid);
 
-  if (isL3) {
+  const verdictKind = session.ablation ? classifyOutcome(ev, session.ablation) : 'inconclusive';
+  if (session.stillCollapsed || verdictKind === 'undertrained') {
+    panel.append(
+      el('p', { class: 'note' },
+        `The model didn't learn — it emits ~one answer everywhere (matched ${pct(ev.matched.acc)}, flipped ${pct(ev.flipped.acc)}). ` +
+        `That's a training collapse, not proof of a cheat or of honesty. Retrain to try again.`),
+    );
+  } else if (isL3) {
     const thr = L3_FLIPPED_THRESHOLD;
     const win = ev.flipped.acc >= thr;
     panel.append(
       el('p', { class: 'note' },
         win
           ? `Flipped accuracy ${pct(ev.flipped.acc)} ≥ ${pct(thr)} (the measured debiased bar). Your data fixed the shortcut — Hans now has to read the shape.`
-          : `Flipped accuracy ${pct(ev.flipped.acc)} < ${pct(thr)}. The cheat still works. Try lower rho or more neutral samples.`,
-      ),
+          : `Flipped accuracy ${pct(ev.flipped.acc)} < ${pct(thr)}. The cheat still works — it still keys on the background. Try lower rho or more neutral samples.`),
     );
   } else if (ev.flipped.acc < 0.6) {
     panel.append(
@@ -276,21 +315,28 @@ export function renderHeatmap(session: Session, nav: Nav): void {
   );
   panel.append(tri);
 
-  const reliancePct = pct(ab.bgReliance);
+  const reliancePct = ab.bgReliance === null ? 'n/a' : pct(ab.bgReliance);
+  const learnedNothing = ab.bgReliance === null;
   panel.append(
     el('div', { class: 'stat-row' },
       (() => {
         const s = el('div', { class: 'stat warn' });
         s.append(
           el('div', { class: 'num' }, reliancePct),
-          el('div', { class: 'lbl' }, 'of the model\'s accuracy lived in the background, not the shape'),
+          el('div', { class: 'lbl' },
+            learnedNothing
+              ? 'of accuracy attributed to the background — none: it learned nothing measurable'
+              : 'of the model\'s accuracy lived in the background, not the shape'),
         );
         return s;
       })(),
     ),
     el('p', { class: 'note' },
-      `Erasing the shape cost it ${pct(ab.fgDrop)} of accuracy; hiding the background cost ${pct(ab.bgDrop)}. ` +
-      `bgReliance = bgDrop ÷ (bgDrop + fgDrop) = ${reliancePct}. A patch-level occlusion heatmap is shown below for the curious.`,
+      learnedNothing
+        ? `Erasing the shape cost it ${pct(ab.fgDrop)}; hiding the background cost ${pct(ab.bgDrop)}. ` +
+          `Both ablations cost ~nothing — there is no reliance to measure. This model didn't learn. A patch-level occlusion heatmap is shown below.`
+        : `Erasing the shape cost it ${pct(ab.fgDrop)} of accuracy; hiding the background cost ${pct(ab.bgDrop)}. ` +
+          `bgReliance = bgDrop ÷ (bgDrop + fgDrop) = ${reliancePct}. A patch-level occlusion heatmap is shown below for the curious.`,
     ),
   );
 
@@ -318,19 +364,30 @@ export function renderHeatmap(session: Session, nav: Nav): void {
   const optShape = el('button', { class: 'btn secondary' }, 'Mostly at the shape — it honestly classified');
   const optBg = el('button', { class: 'btn secondary' }, 'Mostly at the background — it took the shortcut');
   const verdict = el('p', { class: 'note', role: 'status' });
-  const answer = (pickedBg: boolean) => {
-    const correct = ab.bgReliance > 0.5;
-    const right = pickedBg === correct;
-    verdict.textContent = right
-      ? `Correct — erase the shape and it still scored ${pct(ab.accNoFg)}. You caught Hans.`
-      : `Look again — erasing the shape still left it at ${pct(ab.accNoFg)}: it reads the background.`;
-    optShape.disabled = true;
-    optBg.disabled = true;
-    announce(verdict.textContent);
-  };
-  optShape.addEventListener('click', () => answer(false));
-  optBg.addEventListener('click', () => answer(true));
-  quiz.append(optShape, optBg, verdict);
+  if (learnedNothing) {
+    // No reliance to attribute — don't force a shortcut/shape story.
+    quiz.append(
+      el('p', { class: 'note', role: 'status' },
+        'No call to make: the ablation shows this model learned nothing measurable, so it wasn\'t looking anywhere. Retrain and ask again.'),
+    );
+  } else {
+    const answer = (pickedBg: boolean) => {
+      const correct = ab.bgReliance! > 0.5;
+      const right = pickedBg === correct;
+      verdict.textContent = right
+        ? correct
+          ? `Correct — erase the shape and it still scored ${pct(ab.accNoFg)}. You caught Hans.`
+          : `Correct — hiding the background left it at ${pct(ab.accNoBg)}: it really read the shape.`
+        : `Look again — the measured numbers say it relied on the ${correct ? 'background' : 'shape'} ` +
+          `(bgReliance ${reliancePct}).`;
+      optShape.disabled = true;
+      optBg.disabled = true;
+      announce(verdict.textContent);
+    };
+    optShape.addEventListener('click', () => answer(false));
+    optBg.addEventListener('click', () => answer(true));
+    quiz.append(optShape, optBg, verdict);
+  }
 
   panel.append(
     el('div', { class: 'btn-row' },
@@ -338,35 +395,92 @@ export function renderHeatmap(session: Session, nav: Nav): void {
     ),
   );
   app.append(panel);
-  announce(`Ablation done. ${reliancePct} of accuracy lived in the background.`);
+  announce(`Ablation done. ${learnedNothing ? 'nothing measurable learned.' : reliancePct + ' of accuracy lived in the background.'}`);
   focusMain();
 }
 
 // ---------------------------------------------------------------- verdict ---
 
+// The verdict derives from measured evidence — four honest outcomes, never a
+// pre-written story.
 export function renderVerdict(session: Session, nav: Nav): void {
   const app = document.getElementById('app')!;
   app.innerHTML = '';
   const ev = session.evaluation!;
+  const ab = session.ablation!;
+  const kind = classifyOutcome(ev, ab);
+  const rel = ab.bgReliance === null ? 'n/a' : pct(ab.bgReliance);
+
+  const CONTENT: Record<
+    string,
+    { title: string; evidence: string; meaning: string; primary: string }
+  > = {
+    shortcut: {
+      title: 'Guilty: shortcut learning',
+      evidence: `It scored <strong>${pct(ev.matched.acc)}</strong> with the cheat intact and
+        <strong>${pct(ev.flipped.acc)}</strong> when the cheat was reversed. Ablation: <strong>${rel}</strong>
+        of its accuracy lived in the background — erase the shape and it still scored ${pct(ab.accNoFg)}.
+        It didn't fail the exam; it answered a different question than the one you asked.`,
+      meaning: `This is <strong>shortcut learning</strong>: when a spurious cue predicts the label,
+        gradient descent finds it first. Documented real-world analogues include a husky-vs-wolf
+        classifier that keyed on snow (Ribeiro et al., 2016) and a pneumonia model that exploited
+        hospital-system confounds (Zech et al., 2018).`,
+      primary: 'Level 3 — fix the data →',
+    },
+    shape: {
+      title: 'Honest: it learned the shape',
+      evidence: `It scored <strong>${pct(ev.matched.acc)}</strong> with the cheat intact and
+        <strong>${pct(ev.flipped.acc)}</strong> on the full reversal — changing the background rule
+        cost it almost nothing (gap ${pct(ev.gap)}). Ablation: <strong>${rel}</strong> of its
+        accuracy lived in the background; hiding the background still left ${pct(ab.accNoBg)}.`,
+      meaning: `The data design removed the shortcut's advantage, so the network was forced to
+        read the shape — the exact fix shortcut learning calls for.`,
+      primary: 'Back to Level 3 →',
+    },
+    undertrained: {
+      title: 'Inconclusive: it learned almost nothing',
+      evidence: `Best accuracy across the three exams was <strong>${pct(Math.max(ev.matched.acc, ev.flipped.acc, ev.neutral.acc))}</strong> —
+        near chance — and neither ablation cost it anything. A model that learned nothing wasn't
+        looking at the background OR the shape.`,
+      meaning: `Training collapsed (a known failure of small CNNs with aggressive optimizers).
+        This run says nothing about shortcuts — retrain to get a real measurement.`,
+      primary: 'Retrain →',
+    },
+    inconclusive: {
+      title: 'Inconclusive: mixed evidence',
+      evidence: `Matched <strong>${pct(ev.matched.acc)}</strong>, flipped <strong>${pct(ev.flipped.acc)}</strong>,
+        neutral <strong>${pct(ev.neutral.acc)}</strong>; background reliance <strong>${rel}</strong>.
+        The numbers don't fit a clean shortcut or clean shape story.`,
+      meaning: `Real measurements are sometimes ambiguous — that's worth reporting too.
+        Try a different seed or a stronger data redesign.`,
+      primary: 'Back to Level 3 →',
+    },
+  };
+  const c = CONTENT[kind];
+
   const panel = el('section', { class: 'panel' });
   panel.innerHTML = `
     <p class="kicker">The verdict</p>
-    <h2>Guilty: shortcut learning</h2>
-    <p class="lede">Your model scored <strong>${pct(ev.matched.acc)}</strong> on data that kept the cheat
-    and <strong>${pct(ev.flipped.acc)}</strong> when the cheat was flipped. Ablation shows
-    <strong>${pct(session.ablation?.bgReliance ?? 0)}</strong> of its accuracy lived in the background:
-    erase the shape and it still scored ${pct(session.ablation?.accNoFg ?? 0)}.
-    It didn't fail the exam — it answered a different question than the one you asked.</p>
-    <p class="lede">This is <strong>shortcut learning</strong>: when a spurious cue predicts the label,
-    gradient descent finds it first. Real versions: a "wolf" classifier keyed on snow backgrounds,
-    a pneumonia model keyed on hospital watermarks.</p>
+    <h2>${c.title}</h2>
+    <p class="lede">${c.evidence}</p>
+    <p class="lede">${c.meaning}</p>
   `;
+  const notice = el('p', { class: 'note' },
+    'This demo shows the mechanism on synthetic data — it does not prove anything about a specific real-world model. We planted the cheat, so we can measure it exactly.',
+  );
+  const refs = el('ul', { class: 'cite' });
+  refs.innerHTML = `
+    <li>Pfungst (1907/1911), <em>Clever Hans</em>.</li>
+    <li>Ribeiro et al. (2016), "Why Should I Trust You?" (KDD) — the snow/husky example.</li>
+    <li>Zech et al. (2018), <em>PLoS Medicine</em> — hospital-confound shortcut in pneumonia detection.</li>
+    <li>Geirhos et al. (2020), <a href="https://arxiv.org/abs/2004.07780">arXiv:2004.07780</a>; Lapuschkin et al. (2019), <a href="https://www.nature.com/articles/s41467-019-08987-4">doi:10.1038/s41467-019-08987-4</a>.</li>`;
+  panel.append(notice, refs);
   panel.append(
-    el('p', { class: 'note' },
-      'This demo shows the mechanism on synthetic data — it does not prove anything about a specific real-world model. We planted the cheat, so we can measure it exactly.',
-    ),
     el('div', { class: 'btn-row' },
-      el('button', { class: 'btn', click: () => { session.level = 3; nav('l3'); } }, 'Level 3 — fix the data →'),
+      el('button', { class: 'btn', click: () => {
+        if (kind === 'undertrained') nav('train');
+        else { session.level = 3; nav('l3'); }
+      } }, c.primary),
       el('button', { class: 'btn secondary', click: () => nav('teacher') }, 'How to teach this'),
     ),
   );
@@ -438,7 +552,10 @@ function sliderField(
   onInput: (v: number) => void,
 ): HTMLElement {
   const field = el('div', { class: 'slider-field' });
-  const input = el('input', { type: 'range', min: String(min), max: String(max), step: String(step), value: String(value) }) as HTMLInputElement;
+  const input = el('input', {
+    type: 'range', min: String(min), max: String(max), step: String(step), value: String(value),
+    'aria-label': `${name} — ${hint}`,
+  }) as HTMLInputElement;
   input.addEventListener('input', () => onInput(parseFloat(input.value)));
   field.append(el('label', {}, `${name} `), input, el('p', { class: 'hint' }, hint));
   return field;
@@ -458,20 +575,22 @@ export function renderLab(_session: Session, _nav: Nav): void {
     <p class="lede">These numbers come from the headless harness
     (<code>npm run harness</code>), not from your browser run.
     Seeds ${R.config.seeds.join(', ')}, train n=${R.config.trainN}, test n=${R.config.testN} per split,
-    ${R.config.epochs} epochs — generated ${date.toISOString().slice(0, 10)} on tfjs ${R.tfVersion} (cpu).</p>
+    ${R.config.epochs} epochs — generated ${date.toISOString().slice(0, 10)} on tfjs ${R.tfVersion} (${R.meta?.backend ?? 'cpu'} backend).</p>
   `;
+  const tableWrap = el('div', { style: 'overflow-x:auto' });
   const table = el('table', { class: 'results' });
   table.innerHTML = `
-    <thead><tr><th>seed</th><th>rho</th><th>matched</th><th>flipped</th><th>neutral</th><th>gap</th><th>bgMass</th></tr></thead>
+    <thead><tr><th>seed</th><th>rho</th><th>matched</th><th>flipped</th><th>neutral</th><th>gap</th><th>bgReliance</th><th>notes</th></tr></thead>
     <tbody>
       ${R.runs
         .map(
           (r) =>
-            `<tr><td>${r.seed}</td><td>${r.rho.toFixed(1)}</td><td>${pct(r.matchedAcc)}</td><td>${pct(r.flippedAcc)}</td><td>${pct(r.neutralAcc)}</td><td>${pct(r.gap)}</td><td>${r.bgMass.toFixed(3)}</td></tr>`,
+            `<tr><td>${r.seed}</td><td>${r.rho.toFixed(1)}</td><td>${pct(r.matchedAcc)}</td><td>${pct(r.flippedAcc)}</td><td>${pct(r.neutralAcc)}</td><td>${pct(r.gap)}</td><td>${r.bgReliance === null ? 'n/a' : r.bgReliance.toFixed(3)}</td><td>${(r.collapsed ?? false) ? (r.recovered ? 'collapse→retried' : 'collapsed') : ''}</td></tr>`,
         )
         .join('')}
     </tbody>`;
-  panel.append(table);
+  tableWrap.append(table);
+  panel.append(tableWrap);
 
   const gates = el('div');
   gates.innerHTML =
@@ -484,10 +603,12 @@ export function renderLab(_session: Session, _nav: Nav): void {
       .join('') +
     '</ul>' +
     `<p class="lede">Null control (shuffled labels, rho=1.0): per-seed matched acc ${R.nullControl
-      .map((n) => `${n.seed}→${pct(n.matchedAcc)}`)
+      .map((n) => `${n.seed}→${pct(n.matchedAcc)} (gap ${pct(n.matchedAcc - n.flippedAcc)})`)
       .join(', ')}; mean ${pct(
       R.nullControl.reduce((s, n) => s + n.matchedAcc, 0) / R.nullControl.length,
-    )} — nothing to learn, nothing learned. Derived L3 win threshold: ${pct(R.derived.l3FlippedThreshold)} flipped accuracy.</p>`;
+    )} — nothing to learn, nothing learned. A shuffled-label run can still drift onto the dominant
+    feature by chance (arbitrary-sign drift); per-seed gaps are disclosed above so no mean hides an excursion.
+    Derived L3 win threshold: ${pct(R.derived.l3FlippedThreshold)} flipped accuracy (full reversal).</p>`;
   panel.append(
     gates,
     el('p', { class: 'note' },
@@ -533,6 +654,8 @@ export function renderTeacher(session: Session, nav: Nav): void {
       <li>Pfungst, O. (1907/1911). <em>Clever Hans (The Horse of Mr. von Osten)</em>.</li>
       <li>Lapuschkin et al. (2019). Unmasking Clever Hans predictors… <em>Nature Communications</em>. <a href="https://www.nature.com/articles/s41467-019-08987-4">doi:10.1038/s41467-019-08987-4</a></li>
       <li>Geirhos et al. (2020). Shortcut Learning in Deep Neural Networks. <a href="https://arxiv.org/abs/2004.07780">arXiv:2004.07780</a></li>
+      <li>Ribeiro, Singh &amp; Guestrin (2016). "Why Should I Trust You?" (KDD) — the husky-vs-wolf/snow example.</li>
+      <li>Zech et al. (2018). Variable generalization performance of a deep learning model to detect pneumonia… <em>PLoS Medicine</em>. <a href="https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1002683">doi:10.1371/journal.pmed.1002683</a></li>
     </ul>
   `;
   panel.append(el('div', { class: 'btn-row' }, el('button', { class: 'btn', click: () => { session.level = 1; nav('build'); } }, 'Run the lesson →')));
