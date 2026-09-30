@@ -1,0 +1,9 @@
+node_modules
+dist
+playwright-report
+test-results
+*.local
+.DS_Store
+demo-raw
+results/results.smoke.json
+*.webm

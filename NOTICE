@@ -1,0 +1,8 @@
+Clever Hans Lab
+Copyright (c) 2026 Sharon Basovich
+
+This project bundles TensorFlow.js (@tensorflow/tfjs), which is licensed
+under the Apache License, Version 2.0.
+https://github.com/tensorflow/tfjs/blob/master/LICENSE
+
+See THIRD_PARTY.md for the full dependency license inventory.

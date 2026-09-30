@@ -1,0 +1,34 @@
+{
+  "name": "clever-hans-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A browser game that teaches neural-network shortcut learning: train a real CNN on synthetic data with a planted cheat, watch it exploit the shortcut, then fix the data.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "harness": "tsx scripts/harness.ts",
+    "harness:smoke": "tsx scripts/harness.ts --smoke",
+    "e2e": "playwright test",
+    "demo": "tsx scripts/record-demo.ts"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "@types/node": "^22.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/parser": "^8.44.1",
+    "eslint": "^9.36.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.9",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Clever Hans Lab — a browser game where a real neural network learns to cheat, and you teach it not to." />
+    <title>Clever Hans Lab — watch a neural network cheat, then fix it</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#app">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="#/" data-nav="intro">
+        <span class="brand-mark" aria-hidden="true">♞</span>
+        <span>Clever Hans Lab</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <button id="a11y-toggle" class="nav-btn" aria-pressed="false" title="Colour-blind-safe cues: cue colours also differ in brightness and pattern">
+          Accessible cues
+        </button>
+        <a class="nav-btn" href="#/lab" data-nav="lab">Lab results</a>
+        <a class="nav-btn" href="#/teacher" data-nav="teacher">For teachers</a>
+      </nav>
+    </header>
+    <p id="aria-live" class="visually-hidden" aria-live="polite"></p>
+    <main id="app" tabindex="-1"></main>
+    <div id="caption-bar" class="caption-bar" role="status" aria-live="polite" hidden></div>
+    <footer class="site-footer">
+      <p>
+        A real neural network trains in your browser — no server, no accounts, no uploads.
+        Synthetic data only; the demo shows a mechanism, not a claim about any real-world model.
+        <a href="https://github.com/sharonbasovich/clever-hans-lab">Source</a> · MIT.
+      </p>
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
