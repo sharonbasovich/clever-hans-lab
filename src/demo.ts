@@ -5,7 +5,9 @@ import { pct } from './ui/dom.ts';
 // the genuine training run (smaller n to fit 2 minutes). Captions render in
 // the fixed caption bar; Playwright records the whole thing with no input.
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const click = (sel: string) => (document.querySelector(sel) as HTMLElement | null)?.click();
+// Primary action button only — quiz options are '.btn secondary'.
+const click = (sel: string) =>
+  (document.querySelector(`${sel}:not(.secondary)`) as HTMLElement | null)?.click();
 
 function caption(text: string, stage: string) {
   const bar = document.getElementById('caption-bar')!;
@@ -24,7 +26,9 @@ export async function runDemo(session: Session): Promise<void> {
     await sleep(7000 * D);
 
     caption('A real CNN trains in your browser. Watch the loss.', 'train');
-    click('.btn'); // start training
+    click('.btn'); // "Train the network →"
+    await sleep(1000 * D);
+    click('.btn'); // "Start training"
     await sleep(2000 * D);
 
     // Wait for training to complete (nav to exam happens automatically).
@@ -36,17 +40,20 @@ export async function runDemo(session: Session): Promise<void> {
     );
     await sleep(11000 * D);
 
-    caption('Where did it look? Occluding pixels one patch at a time tells us.', 'heatmap');
+    caption('Where did it look? Erase the background vs erase the shape — a counterfactual test.', 'heatmap');
     click('.btn'); // "Where was it looking?"
     await sleep(1000 * D);
-    const bgm = pct(session.bgMass ?? 0);
-    caption(`${bgm} of its attention sat on the background. We know because we drew the shapes.`, 'heatmap2');
+    const ab = session.ablation!;
+    caption(
+      `Erase the shape → still ${pct(ab.accNoFg)} correct. Hide the background → ${pct(ab.accNoBg)}. Its accuracy lived in the background.`,
+      'heatmap2',
+    );
     await sleep(11000 * D);
 
     caption('Your job: design the data so it can\'t cheat.', 'l3');
-    click('.btn'); // verdict
+    click('.btn'); // heatmap -> verdict
     await sleep(2500 * D);
-    click('.btn'); // -> L3
+    click('.btn'); // verdict -> L3
     await sleep(4000 * D);
 
     // In L3, set rho low + neutral samples, then retrain.
@@ -61,7 +68,9 @@ export async function runDemo(session: Session): Promise<void> {
     }
     caption('Lower the cheat strength, add neutral images, stay under budget — retrain.', 'l3tune');
     await sleep(3000 * D);
-    click('.btn'); // retrain
+    click('.btn'); // "Retrain on my data →"
+    await sleep(1000 * D);
+    click('.btn'); // "Start training" on the retrain screen
     await waitFor(() => location.hash === '#/exam', 60000);
     const ev3 = session.evaluation!;
     caption(`Flipped test after your fix: ${pct(ev3.flipped.acc)}.`, 'l3exam');
