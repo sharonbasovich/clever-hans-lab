@@ -2,7 +2,7 @@ import { occlusionMap } from '../explain.ts';
 import { L3, L3_FLIPPED_THRESHOLD, RESULTS } from '../game/levels.ts';
 import type { Session } from '../game/session.ts';
 import { IMG_PIXELS } from '../world.ts';
-import { announce, describeImage, drawHeatmap, drawImage, drawLossChart, el, pct } from './dom.ts';
+import { announce, describeImage, drawAblation, drawHeatmap, drawImage, drawLossChart, el, pct } from './dom.ts';
 import { hansSvg } from './hans.ts';
 
 export type Nav = (screen: string) => void;
@@ -237,48 +237,93 @@ export function renderHeatmap(session: Session, nav: Nav): void {
   app.innerHTML = '';
   const world = session.testSets!.matched;
   const model = session.model!;
-  // Use the highest-confidence image for a clear story.
-  let bestIdx = 0;
+  const idx = 0;
   const heat = occlusionMap(model, world.images.subarray(0, IMG_PIXELS * 3) as Float32Array);
+  const ab = session.ablation!;
 
   const panel = el('section', { class: 'panel' });
   panel.innerHTML = `
     <p class="kicker">Level 2 · Catch the cheat</p>
     <h2>Where was it looking?</h2>
-    <p class="lede">We slide a grey patch across the image and measure how much the model's
-    confidence drops — an occlusion heatmap. Orange = pixels it relied on. The green
-    outline is the true shape (we drew it, so we know).</p>
+    <p class="lede">We know the true shape pixels (we drew them), so we can erase either region
+    and measure what the model still gets right — a counterfactual ablation on ${ab.n} held-out images.</p>
   `;
+
+  // Three-panel counterfactual: original | hide background | erase shape.
+  const tri = el('div', { class: 'exam-grid' });
+  const mkCard = (title: string, mode: 'img' | 'noBg' | 'noFg', acc: number, note: string) => {
+    const card = el('div', { class: 'exam-card' });
+    const c = el('canvas', { role: 'img', style: 'width:100%;max-width:180px;border-radius:8px' });
+    if (mode === 'img') drawImage(c, world, idx, 6);
+    else drawAblation(c, world, idx, mode, 6);
+    c.setAttribute(
+      'aria-label',
+      mode === 'noBg'
+        ? 'Test image with the entire background greyed out'
+        : mode === 'noFg'
+          ? 'Test image with the shape erased into the background colour'
+          : 'Original test image',
+    );
+    card.append(c, el('div', { class: 'name', style: 'margin-top:8px' }, title));
+    if (acc >= 0) card.append(el('div', { class: 'big', style: `font-size:1.7rem;color:${acc < 0.6 ? 'var(--danger)' : 'var(--accent-2)'}` }, pct(acc)));
+    card.append(el('div', { class: 'desc' }, note));
+    return card;
+  };
+  tri.append(
+    mkCard('Original', 'img', ab.acc, 'Model accuracy on untouched matched tests.'),
+    mkCard('Hide the background', 'noBg', ab.accNoBg, 'Same images, background → grey. The cheat is gone.'),
+    mkCard('Erase the shape', 'noFg', ab.accNoFg, 'Same images, shape → background colour. Only the cheat is left.'),
+  );
+  panel.append(tri);
+
+  const reliancePct = pct(ab.bgReliance);
+  panel.append(
+    el('div', { class: 'stat-row' },
+      (() => {
+        const s = el('div', { class: 'stat warn' });
+        s.append(
+          el('div', { class: 'num' }, reliancePct),
+          el('div', { class: 'lbl' }, 'of the model\'s accuracy lived in the background, not the shape'),
+        );
+        return s;
+      })(),
+    ),
+    el('p', { class: 'note' },
+      `Erasing the shape cost it ${pct(ab.fgDrop)} of accuracy; hiding the background cost ${pct(ab.bgDrop)}. ` +
+      `bgReliance = bgDrop ÷ (bgDrop + fgDrop) = ${reliancePct}. A patch-level occlusion heatmap is shown below for the curious.`,
+    ),
+  );
 
   const wrap = el('div', { class: 'heatmap-wrap' });
   const canvas = el('canvas', {
     role: 'img',
-    'aria-label': `Occlusion heatmap: ${pct(session.bgMass ?? 0)} of the model's attention is on the background`,
+    'aria-label': `Occlusion heatmap: ${pct(session.bgMass ?? 0)} of the patch-occlusion heat is on the background`,
   });
-  drawHeatmap(canvas, world, bestIdx, heat, 8);
+  drawHeatmap(canvas, world, idx, heat, 8);
   wrap.append(canvas);
   const side = el('div', { style: 'flex:1;min-width:240px' });
-  const bgPct = pct(session.bgMass ?? 0);
   side.innerHTML = `
-    <div class="stat warn"><div class="num">${bgPct}</div><div class="lbl">of the model's attention is on the background</div></div>
     <p class="legend"><span class="sw" style="background:#f59e0b"></span>high-impact pixels (occlusion heat)<br>
-    <span class="sw" style="background:#d4ff4f"></span>true shape outline (ground truth)</p>
+    <span class="sw" style="background:#d4ff4f"></span>true shape outline (ground truth)<br><br>
+    Patch occlusion under-measures a spread-out cue: one patch only hides 1/64
+    of the background, so this map is a supporting view — the ablation above is
+    the headline measurement.</p>
   `;
   wrap.append(side);
   panel.append(wrap);
 
   const quiz = el('div', { class: 'quiz-options' });
-  const q = el('h3', {}, session.level === 2 || session.level === 1 ? 'Level 2 — your call: where did it look?' : 'Where did it look?');
+  const q = el('h3', {}, 'Level 2 — your call: where did it look?');
   panel.append(q, quiz);
   const optShape = el('button', { class: 'btn secondary' }, 'Mostly at the shape — it honestly classified');
   const optBg = el('button', { class: 'btn secondary' }, 'Mostly at the background — it took the shortcut');
   const verdict = el('p', { class: 'note', role: 'status' });
   const answer = (pickedBg: boolean) => {
-    const correct = (session.bgMass ?? 0) > 0.5;
+    const correct = ab.bgReliance > 0.5;
     const right = pickedBg === correct;
     verdict.textContent = right
-      ? `Correct — ${bgPct} of its attention was background. You caught Hans.`
-      : `Look again — ${bgPct} of its attention was background, not the shape.`;
+      ? `Correct — erase the shape and it still scored ${pct(ab.accNoFg)}. You caught Hans.`
+      : `Look again — erasing the shape still left it at ${pct(ab.accNoFg)}: it reads the background.`;
     optShape.disabled = true;
     optBg.disabled = true;
     announce(verdict.textContent);
@@ -293,7 +338,7 @@ export function renderHeatmap(session: Session, nav: Nav): void {
     ),
   );
   app.append(panel);
-  announce(`Heatmap ready. ${bgPct} of attention is on the background.`);
+  announce(`Ablation done. ${reliancePct} of accuracy lived in the background.`);
   focusMain();
 }
 
@@ -308,8 +353,9 @@ export function renderVerdict(session: Session, nav: Nav): void {
     <p class="kicker">The verdict</p>
     <h2>Guilty: shortcut learning</h2>
     <p class="lede">Your model scored <strong>${pct(ev.matched.acc)}</strong> on data that kept the cheat
-    and <strong>${pct(ev.flipped.acc)}</strong> when the cheat was flipped. The heatmap puts
-    <strong>${pct(session.bgMass ?? 0)}</strong> of its attention on the background.
+    and <strong>${pct(ev.flipped.acc)}</strong> when the cheat was flipped. Ablation shows
+    <strong>${pct(session.ablation?.bgReliance ?? 0)}</strong> of its accuracy lived in the background:
+    erase the shape and it still scored ${pct(session.ablation?.accNoFg ?? 0)}.
     It didn't fail the exam — it answered a different question than the one you asked.</p>
     <p class="lede">This is <strong>shortcut learning</strong>: when a spurious cue predicts the label,
     gradient descent finds it first. Real versions: a "wolf" classifier keyed on snow backgrounds,

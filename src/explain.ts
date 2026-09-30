@@ -85,3 +85,90 @@ export function meanBgMass(model: tf.LayersModel, world: World, k = 32, patch = 
   }
   return n === 0 ? 0 : sum / n;
 }
+
+export interface Ablation {
+  n: number;
+  acc: number;
+  /** Accuracy with the background greyed out (shape only). */
+  accNoBg: number;
+  /** Accuracy with the shape erased into the background (cue only). */
+  accNoFg: number;
+  bgDrop: number;
+  fgDrop: number;
+  /** bgDrop / (bgDrop + fgDrop) in [0,1]: how much of the model's accuracy
+   *  lives in the background rather than the shape. ~1 = shortcut; ~0 = shape. */
+  bgReliance: number;
+}
+
+// Counterfactual ablation — the headline "did it cheat" measurement. Unlike
+// patch occlusion, it does not under-measure a distributed cue: a single 4x4
+// patch only removes 1/64 of the background colour, so patch-occlusion mass
+// concentrates on the shape edge even for a model that provably uses the
+// background. Blanking the WHOLE background (or the whole shape) measures the
+// reliance directly. We can do this because we generated the pixels and know
+// the true foreground mask.
+export function ablationReliance(model: tf.LayersModel, world: World, k = 64): Ablation {
+  const n = Math.min(k, world.n);
+  const noBg = new Float32Array(n * IMG_PIXELS * 3);
+  const noFg = new Float32Array(n * IMG_PIXELS * 3);
+  for (let i = 0; i < n; i++) {
+    const img = world.images.subarray(i * IMG_PIXELS * 3, (i + 1) * IMG_PIXELS * 3);
+    const mask = world.fgMasks.subarray(i * IMG_PIXELS, (i + 1) * IMG_PIXELS);
+    noBg.set(img, i * IMG_PIXELS * 3);
+    noFg.set(img, i * IMG_PIXELS * 3);
+    // Mean background colour for filling the erased shape.
+    let r = 0, g = 0, b = 0, c = 0;
+    for (let p = 0; p < IMG_PIXELS; p++) {
+      if (mask[p] === 0) {
+        r += img[p * 3];
+        g += img[p * 3 + 1];
+        b += img[p * 3 + 2];
+        c++;
+      }
+    }
+    if (c > 0) {
+      r /= c;
+      g /= c;
+      b /= c;
+    }
+    const off = i * IMG_PIXELS * 3;
+    for (let p = 0; p < IMG_PIXELS; p++) {
+      if (mask[p] === 0) {
+        noBg[off + p * 3] = 0.5;
+        noBg[off + p * 3 + 1] = 0.5;
+        noBg[off + p * 3 + 2] = 0.5;
+      } else {
+        noFg[off + p * 3] = r;
+        noFg[off + p * 3 + 1] = g;
+        noFg[off + p * 3 + 2] = b;
+      }
+    }
+  }
+  const acc = batchAcc(model, world.images, world.labels, n);
+  const accNoBg = batchAcc(model, noBg, world.labels, n);
+  const accNoFg = batchAcc(model, noFg, world.labels, n);
+  const bgDrop = Math.max(0, acc - accNoBg);
+  const fgDrop = Math.max(0, acc - accNoFg);
+  const denom = bgDrop + fgDrop;
+  return {
+    n,
+    acc,
+    accNoBg,
+    accNoFg,
+    bgDrop,
+    fgDrop,
+    bgReliance: denom > 0 ? bgDrop / denom : 0.5,
+  };
+}
+
+function batchAcc(model: tf.LayersModel, images: Float32Array, labels: Uint8Array, n: number): number {
+  const out = tf.tidy(() => {
+    const xs = tf.tensor4d(images.subarray(0, n * IMG_PIXELS * 3), [n, IMG_SIZE, IMG_SIZE, 3]);
+    const pred = (model.predict(xs) as tf.Tensor).argMax(1);
+    const t = tf.tensor1d(Array.from(labels.subarray(0, n)), 'float32');
+    const eq = pred.equal(t).mean();
+    const v = eq.dataSync()[0];
+    return v;
+  });
+  return out;
+}

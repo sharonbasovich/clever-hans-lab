@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T03:03:41.988Z",
+  "generatedAt": "2026-09-30T03:12:59.658Z",
   "backend": "tensorflow",
   "tfVersion": "4.22.0",
   "config": {
@@ -30,8 +30,11 @@
       "neutralAcc": 0.585,
       "gap": 1,
       "bgMass": 0.8047675572696514,
+      "bgReliance": 1,
+      "accNoBg": 0.515625,
+      "accNoFg": 1,
       "trainLossFinal": 0.3101343540350596,
-      "wallMs": 1703
+      "wallMs": 1933
     },
     {
       "seed": 101,
@@ -41,8 +44,11 @@
       "neutralAcc": 0.445,
       "gap": -0.007499999999999951,
       "bgMass": 0.7242024739583334,
+      "bgReliance": 0.5,
+      "accNoBg": 0.3984375,
+      "accNoFg": 0.3984375,
       "trainLossFinal": 0.7992955605189006,
-      "wallMs": 1474
+      "wallMs": 1779
     },
     {
       "seed": 101,
@@ -52,8 +58,11 @@
       "neutralAcc": 0.9875,
       "gap": 0,
       "bgMass": 0.27746121972632676,
+      "bgReliance": 0,
+      "accNoBg": 1,
+      "accNoFg": 0.3984375,
       "trainLossFinal": 0.31037022948265075,
-      "wallMs": 1497
+      "wallMs": 1529
     },
     {
       "seed": 202,
@@ -63,8 +72,11 @@
       "neutralAcc": 0.4175,
       "gap": 1,
       "bgMass": 0.7274576822916666,
+      "bgReliance": 1,
+      "accNoBg": 0.4375,
+      "accNoFg": 1,
       "trainLossFinal": 0.31012895226478576,
-      "wallMs": 1427
+      "wallMs": 1735
     },
     {
       "seed": 202,
@@ -74,8 +86,11 @@
       "neutralAcc": 0.4825,
       "gap": 0.8325,
       "bgMass": 0.7274576822916666,
+      "bgReliance": 1,
+      "accNoBg": 0.5859375,
+      "accNoFg": 0.8828125,
       "trainLossFinal": 0.4049206002553304,
-      "wallMs": 1444
+      "wallMs": 1681
     },
     {
       "seed": 202,
@@ -85,8 +100,11 @@
       "neutralAcc": 0.9925,
       "gap": 0.010000000000000009,
       "bgMass": 0.2591654720683163,
+      "bgReliance": 0,
+      "accNoBg": 0.9921875,
+      "accNoFg": 0.5859375,
       "trainLossFinal": 0.33244610865910845,
-      "wallMs": 1410
+      "wallMs": 1698
     },
     {
       "seed": 303,
@@ -96,8 +114,11 @@
       "neutralAcc": 0.48,
       "gap": 0.9875,
       "bgMass": 0.7350667317708334,
+      "bgReliance": 1,
+      "accNoBg": 0.5390625,
+      "accNoFg": 1,
       "trainLossFinal": 0.31012895226478576,
-      "wallMs": 1496
+      "wallMs": 1734
     },
     {
       "seed": 303,
@@ -107,8 +128,11 @@
       "neutralAcc": 0.52,
       "gap": 0.825,
       "bgMass": 0.7350667317708334,
+      "bgReliance": 1,
+      "accNoBg": 0.4609375,
+      "accNoFg": 0.90625,
       "trainLossFinal": 0.4054304440816244,
-      "wallMs": 1479
+      "wallMs": 1754
     },
     {
       "seed": 303,
@@ -118,8 +142,11 @@
       "neutralAcc": 0.9975,
       "gap": 0,
       "bgMass": 0.2545518102469504,
+      "bgReliance": 0,
+      "accNoBg": 1,
+      "accNoFg": 0.5390625,
       "trainLossFinal": 0.3104679914315542,
-      "wallMs": 1439
+      "wallMs": 1824
     },
     {
       "seed": 404,
@@ -129,8 +156,11 @@
       "neutralAcc": 0.5375,
       "gap": 1,
       "bgMass": 0.7285190879999557,
+      "bgReliance": 1,
+      "accNoBg": 0.4296875,
+      "accNoFg": 1,
       "trainLossFinal": 0.31012895226478576,
-      "wallMs": 1506
+      "wallMs": 1804
     },
     {
       "seed": 404,
@@ -140,8 +170,11 @@
       "neutralAcc": 0.5375,
       "gap": -0.03749999999999998,
       "bgMass": 0.7082347457689812,
+      "bgReliance": 0.5,
+      "accNoBg": 0.4296875,
+      "accNoFg": 0.4296875,
       "trainLossFinal": 0.7770038938522339,
-      "wallMs": 1568
+      "wallMs": 1791
     },
     {
       "seed": 404,
@@ -151,8 +184,11 @@
       "neutralAcc": 1,
       "gap": 0,
       "bgMass": 0.09722001624960215,
+      "bgReliance": 0,
+      "accNoBg": 1,
+      "accNoFg": 0.4296875,
       "trainLossFinal": 0.311483704050382,
-      "wallMs": 1490
+      "wallMs": 1801
     },
     {
       "seed": 505,
@@ -162,8 +198,11 @@
       "neutralAcc": 0.56,
       "gap": 1,
       "bgMass": 0.7145182291666666,
+      "bgReliance": 1,
+      "accNoBg": 0.578125,
+      "accNoFg": 1,
       "trainLossFinal": 0.31012895226478576,
-      "wallMs": 1465
+      "wallMs": 1783
     },
     {
       "seed": 505,
@@ -173,8 +212,11 @@
       "neutralAcc": 0.5225,
       "gap": 0.5625,
       "bgMass": 0.6663626959005235,
+      "bgReliance": 0.5,
+      "accNoBg": 0.5,
+      "accNoFg": 0.5,
       "trainLossFinal": 0.41749581813812253,
-      "wallMs": 1452
+      "wallMs": 1657
     },
     {
       "seed": 505,
@@ -184,16 +226,50 @@
       "neutralAcc": 0.9575,
       "gap": 0,
       "bgMass": 0.2688237577488491,
+      "bgReliance": 0,
+      "accNoBg": 1,
+      "accNoFg": 0.5,
       "trainLossFinal": 0.31080846309661864,
-      "wallMs": 1520
+      "wallMs": 1947
     }
   ],
-  "nullControl": {
-    "seed": 101,
-    "matchedAcc": 0.485,
-    "flippedAcc": 0.4775,
-    "neutralAcc": 0.555
-  },
+  "nullControl": [
+    {
+      "seed": 101,
+      "matchedAcc": 0.6575,
+      "flippedAcc": 0.575,
+      "neutralAcc": 0.6025,
+      "bgReliance": 0.2619047619047619
+    },
+    {
+      "seed": 202,
+      "matchedAcc": 0.47,
+      "flippedAcc": 0.475,
+      "neutralAcc": 0.5175,
+      "bgReliance": 0.5
+    },
+    {
+      "seed": 303,
+      "matchedAcc": 0.51,
+      "flippedAcc": 0.5025,
+      "neutralAcc": 0.48,
+      "bgReliance": 0.5
+    },
+    {
+      "seed": 404,
+      "matchedAcc": 0.485,
+      "flippedAcc": 0.5225,
+      "neutralAcc": 0.5375,
+      "bgReliance": 0.5
+    },
+    {
+      "seed": 505,
+      "matchedAcc": 0.495,
+      "flippedAcc": 0.4675,
+      "neutralAcc": 0.4775,
+      "bgReliance": 0.5
+    }
+  ],
   "determinism": {
     "deterministic": true
   },
@@ -234,6 +310,13 @@
         "hi": 0.7753654171742907,
         "n": 5,
         "B": 2000
+      },
+      "bgRelianceCI": {
+        "mean": 1,
+        "lo": 1,
+        "hi": 1,
+        "n": 5,
+        "B": 2000
       }
     },
     {
@@ -270,6 +353,13 @@
         "mean": 0.7122648659380676,
         "lo": 0.6884779130482771,
         "hi": 0.7298502604166667,
+        "n": 5,
+        "B": 2000
+      },
+      "bgRelianceCI": {
+        "mean": 0.7,
+        "lo": 0.5,
+        "hi": 0.9,
         "n": 5,
         "B": 2000
       }
@@ -310,6 +400,13 @@
         "hi": 0.27115184543495596,
         "n": 5,
         "B": 2000
+      },
+      "bgRelianceCI": {
+        "mean": 0,
+        "lo": 0,
+        "hi": 0,
+        "n": 5,
+        "B": 2000
       }
     }
   ],
@@ -328,15 +425,15 @@
     },
     {
       "id": "G3",
-      "name": "Attention sits on the cheat: bgMass at rho=1.0 exceeds bgMass at rho=0.5",
+      "name": "Accuracy lives in the background: ablation bgReliance at rho=1.0 vs rho=0.5",
       "pass": true,
-      "detail": "mean bgMass rho=1.0=0.742, rho=0.5=0.231; sign-test p=0.063"
+      "detail": "mean bgReliance rho=1.0=1.000, rho=0.5=0.000; sign-test p=0.063"
     },
     {
       "id": "G4",
-      "name": "Null control at chance: shuffled labels give ~50% everywhere",
+      "name": "Null control at chance: mean shuffled-label matched acc ≈ 50% across seeds",
       "pass": true,
-      "detail": "matched=48.5% flipped=47.8% neutral=55.5%"
+      "detail": "per-seed matched=65.8%, 47.0%, 51.0%, 48.5%, 49.5%; mean=52.4%"
     },
     {
       "id": "G5",
@@ -348,5 +445,5 @@
   "derived": {
     "l3FlippedThreshold": 0.95
   },
-  "wallMsTotal": 26827
+  "wallMsTotal": 38432
 }

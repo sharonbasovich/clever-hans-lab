@@ -2,7 +2,7 @@ import * as tf from '@tensorflow/tfjs';
 import { buildModel } from '../model.ts';
 import { trainModel, type TrainHistory, type TrainOptions } from '../train.ts';
 import { evalSets, type EvalSuite } from '../evaluate.ts';
-import { meanBgMass } from '../explain.ts';
+import { ablationReliance, meanBgMass, type Ablation } from '../explain.ts';
 import { generateWorld, mixWorlds, type World } from '../world.ts';
 import { L1, L3 } from './levels.ts';
 
@@ -25,6 +25,7 @@ export class Session {
   history: TrainHistory | null = null;
   evaluation: EvalSuite | null = null;
   bgMass: number | null = null;
+  ablation: Ablation | null = null;
   l3Design: { rho: number; neutral: number } | null = null;
 
   /** Demo mode shrinks the world so the recorded run stays under 2 minutes —
@@ -122,10 +123,11 @@ export class Session {
     return this.evaluation;
   }
 
-  /** Mean occlusion mass on background pixels over a slice of matched tests. */
+  /** Mean occlusion mass + counterfactual ablation on matched tests. */
   explain(k = this.demo ? 12 : 24): number {
     if (!this.model || !this.testSets) throw new Error('train first');
     this.bgMass = meanBgMass(this.model, this.testSets.matched, k);
+    this.ablation = ablationReliance(this.model, this.testSets.matched, this.demo ? 64 : 200);
     return this.bgMass;
   }
 }

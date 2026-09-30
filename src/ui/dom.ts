@@ -50,6 +50,68 @@ export function drawImage(canvas: HTMLCanvasElement, world: World, index: number
   c2.drawImage(tmp, 0, 0, canvas.width, canvas.height);
 }
 
+// Draw one image with the background greyed out ('noBg') or the shape erased
+// into the mean background colour ('noFg') — the counterfactual ablation view.
+export function drawAblation(
+  canvas: HTMLCanvasElement,
+  world: World,
+  index: number,
+  mode: 'noBg' | 'noFg',
+  scale = 8,
+): void {
+  const off = index * IMG_PIXELS * 3;
+  const mOff = index * IMG_PIXELS;
+  const img = new Float32Array(world.images.subarray(off, off + IMG_PIXELS * 3));
+  if (mode === 'noFg') {
+    let r = 0, g = 0, b = 0, c = 0;
+    for (let p = 0; p < IMG_PIXELS; p++) {
+      if (world.fgMasks[mOff + p] === 0) {
+        r += img[p * 3];
+        g += img[p * 3 + 1];
+        b += img[p * 3 + 2];
+        c++;
+      }
+    }
+    if (c) {
+      r /= c;
+      g /= c;
+      b /= c;
+    }
+    for (let p = 0; p < IMG_PIXELS; p++) {
+      if (world.fgMasks[mOff + p] === 1) {
+        img[p * 3] = r;
+        img[p * 3 + 1] = g;
+        img[p * 3 + 2] = b;
+      }
+    }
+  } else {
+    for (let p = 0; p < IMG_PIXELS; p++) {
+      if (world.fgMasks[mOff + p] === 0) {
+        img[p * 3] = 0.5;
+        img[p * 3 + 1] = 0.5;
+        img[p * 3 + 2] = 0.5;
+      }
+    }
+  }
+  const tmp = document.createElement('canvas');
+  tmp.width = IMG_SIZE;
+  tmp.height = IMG_SIZE;
+  const ctx = tmp.getContext('2d')!;
+  const data = ctx.createImageData(IMG_SIZE, IMG_SIZE);
+  for (let p = 0; p < IMG_PIXELS; p++) {
+    data.data[p * 4] = Math.round(img[p * 3] * 255);
+    data.data[p * 4 + 1] = Math.round(img[p * 3 + 1] * 255);
+    data.data[p * 4 + 2] = Math.round(img[p * 3 + 2] * 255);
+    data.data[p * 4 + 3] = 255;
+  }
+  ctx.putImageData(data, 0, 0);
+  canvas.width = IMG_SIZE * scale;
+  canvas.height = IMG_SIZE * scale;
+  const c2 = canvas.getContext('2d')!;
+  c2.imageSmoothingEnabled = false;
+  c2.drawImage(tmp, 0, 0, canvas.width, canvas.height);
+}
+
 export function describeImage(world: World, index: number): string {
   const shape = world.labels[index] === 0 ? 'circle' : 'triangle';
   const cue =

@@ -85,6 +85,7 @@ html, body {
   max-width: 1060px;
   margin: 0 auto;
   padding: clamp(18px, 4vw, 44px) clamp(14px, 4vw, 40px) 60px;
+  outline: none;
 }
 
 .hero { text-align: center; padding: 20px 0 10px; }
