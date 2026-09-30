@@ -55,8 +55,11 @@ test('keyboard access and 375px width', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Clever Hans Lab' })).toBeVisible();
   // Tab to the primary CTA and activate with Enter.
-  for (let i = 0; i < 8; i++) {
-    const focused = await page.evaluate(() => (document.activeElement as HTMLElement)?.textContent ?? '');
+  for (let i = 0; i < 20; i++) {
+    const focused = await page.evaluate(() => {
+      const a = document.activeElement as HTMLElement;
+      return a?.tagName === 'BUTTON' ? (a.textContent ?? '') : '';
+    });
     if (focused.includes('Level 1')) break;
     await page.keyboard.press('Tab');
   }

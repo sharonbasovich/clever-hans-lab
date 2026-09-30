@@ -483,8 +483,10 @@ export function renderLab(_session: Session, _nav: Nav): void {
       )
       .join('') +
     '</ul>' +
-    `<p class="lede">Null control (shuffled labels, seed ${R.nullControl.seed}, rho=1.0): matched ${pct(
-      R.nullControl.matchedAcc,
+    `<p class="lede">Null control (shuffled labels, rho=1.0): per-seed matched acc ${R.nullControl
+      .map((n) => `${n.seed}→${pct(n.matchedAcc)}`)
+      .join(', ')}; mean ${pct(
+      R.nullControl.reduce((s, n) => s + n.matchedAcc, 0) / R.nullControl.length,
     )} — nothing to learn, nothing learned. Derived L3 win threshold: ${pct(R.derived.l3FlippedThreshold)} flipped accuracy.</p>`;
   panel.append(
     gates,
