@@ -27,7 +27,7 @@ export function renderIntro(session: Session, nav: Nav): void {
     <p class="hook">1907: a horse "did maths" by reading his trainer's face.<br>
     Today: your neural network is about to pull the same trick — and you'll catch it.</p>
     <p class="sub">You will plant a cheat in a synthetic dataset, watch a real CNN exploit it
-    in seconds, prove it with a heatmap, then redesign the data until it can't cheat.
+    in seconds, prove it by erasing the evidence, then redesign the data until it can't cheat.
     Everything trains in your browser. Nothing is faked.</p>
   `;
   wrap.append(
