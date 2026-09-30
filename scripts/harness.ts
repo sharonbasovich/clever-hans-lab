@@ -33,9 +33,11 @@ const OUT_DIR = join(HERE, '..', 'results');
 const SMOKE = process.argv.includes('--smoke');
 const SEEDS = SMOKE ? [101] : [101, 202, 303, 404, 505];
 const RHOS = [1.0, 0.9, 0.5];
-const TRAIN_N = SMOKE ? 384 : 1200;
-const TEST_N = SMOKE ? 160 : 400;
-const EPOCHS = SMOKE ? 3 : 8;
+// Smoke keeps the gates meaningful (shape must still be learned): n=768/5ep
+// is enough for rho=0.5 to converge; 384/3ep under-trained it (G2/G3 fail).
+const TRAIN_N = SMOKE ? 768 : 1200;
+const TEST_N = SMOKE ? 240 : 400;
+const EPOCHS = SMOKE ? 5 : 8;
 const BATCH = 64;
 const BGM_K = 24; // images per world sampled for occlusion mass
 
@@ -192,10 +194,12 @@ async function main() {
       name: 'Accuracy lives in the background: ablation bgReliance at rho=1.0 vs rho=0.5',
       pass:
         bg10.reduce((s, v) => s + v, 0) / bg10.length >= 0.8 &&
-        signTest(bg10.map((v, i) => v - bg05[i])).p < 0.25,
+        bg05.reduce((s, v) => s + v, 0) / bg05.length <= 0.2 &&
+        // A sign test can't reach p<0.25 with a single seed — skip it in smoke.
+        (SMOKE || signTest(bg10.map((v, i) => v - bg05[i])).p < 0.25),
       detail: `mean bgReliance rho=1.0=${(bg10.reduce((s, v) => s + v, 0) / bg10.length).toFixed(3)}, ` +
         `rho=0.5=${(bg05.reduce((s, v) => s + v, 0) / bg05.length).toFixed(3)}; ` +
-        `sign-test p=${signTest(bg10.map((v, i) => v - bg05[i])).p.toFixed(3)}`,
+        (SMOKE ? 'sign test n/a (n=1)' : `sign-test p=${signTest(bg10.map((v, i) => v - bg05[i])).p.toFixed(3)}`),
     },
     {
       id: 'G4',
