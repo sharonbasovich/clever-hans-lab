@@ -47,6 +47,11 @@ function route() {
   // hijack navigation later.
   if (screen !== 'train' && session.trainingNow) session.cancelTraining();
 
+  // Level context follows the route, not just the in-game button: opening
+  // #/l3 directly (or after a cancellation recovery) must still mark the
+  // session as Level 3 so train/exam/verdict show the right context.
+  if (screen === 'l3') session.level = 3;
+
   // Result screens need a real evaluation; a reload or direct link has none.
   if (NEEDS_EVAL.has(screen) && !session.evaluation) {
     session.notice = session.trainWorld

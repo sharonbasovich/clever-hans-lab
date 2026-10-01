@@ -272,3 +272,50 @@ test('keyboard access and 375px width', async ({ page }) => {
   await page.goto('/#/l3');
   await expect(page.locator('input[type=range][aria-label]')).toHaveCount(2);
 });
+
+test('route context: direct #/l3 entry sets Level 3 context', async ({ page }) => {
+  // Regression: opening #/l3 directly (e.g. after a cancellation recovery)
+  // left session.level at 1, so later screens kept the 'Levels 1–2' context.
+  await page.goto('/?fast=1#/l3');
+  await expect(
+    page.getByRole('heading', { name: 'Design the training set so it' }),
+  ).toBeVisible();
+  await expect(page.locator('.lede').first()).toContainText(/Challenge target/);
+
+  // The L3 flow's train screen must show Level 3 context, not 'Level 1'.
+  await page.getByRole('button', { name: 'Retrain on my data' }).click();
+  await expect(page.locator('.kicker')).toContainText('Level 3 · Fix the data');
+  await expect(page.locator('.kicker')).not.toContainText('Level 1');
+
+  // A measured run injected for the exam must also show Level 3 context.
+  await page.evaluate(() => {
+    const s = (window as unknown as { __chlSession: Record<string, unknown> })
+      .__chlSession as {
+      evaluation: unknown;
+      ablation: unknown;
+      stillCollapsed: boolean;
+      bgMass: number;
+    };
+    const m = (acc: number, split: string) => ({ split, n: 100, correct: acc, acc });
+    s.evaluation = {
+      matched: m(0.97, 'matched'),
+      flipped: m(0.95, 'flipped'),
+      neutral: m(0.55, 'neutral'),
+      gap: 0.02,
+    };
+    s.ablation = {
+      n: 100, acc: 0.97, accNoBg: 0.9, accNoFg: 0.5, accAgree: 0.97,
+      accSwap: 0.95, bgDrop: 0.1, fgDrop: 0.4, swapDrop: 0.02,
+      cueReliance: 0.02, fillReliance: 0.1, swapWorld: null,
+    };
+    s.stillCollapsed = false;
+    s.bgMass = 0.2;
+    location.hash = '#/exam';
+  });
+  await expect(page.locator('.kicker')).toContainText('Level 3 · Fix the data');
+  await expect(page.locator('.kicker')).not.toContainText('Levels 1–2');
+
+  // Normal navigation unaffected: back to the builder resets to Level 1.
+  await page.evaluate(() => (location.hash = '#/build'));
+  await expect(page.locator('.kicker')).toContainText('Level 1 · Meet Hans');
+});

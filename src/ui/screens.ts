@@ -51,6 +51,7 @@ export function renderIntro(session: Session, nav: Nav): void {
 export function renderBuild(session: Session, nav: Nav): void {
   const app = document.getElementById('app')!;
   app.innerHTML = '';
+  session.level = 1; // re-entering the builder always means a Level 1 world
   session.buildLevel1World();
   const world = session.trainWorld!;
 
@@ -710,7 +711,7 @@ export function renderTeacher(session: Session, nav: Nav): void {
     <h3>Run it (10 min)</h3>
     <ol>
       <li>Play Level 1: train, then compare the Matched vs Flipped exam.</li>
-      <li>Level 2: before revealing, have each student call "shape or background" — the heatmap settles the bet.</li>
+      <li>Level 2: before revealing, have each student call "cue, shape, or a bit of both" — the measured evidence settles it (mixed or undertrained runs may honestly have no clean call). The occlusion heatmap is secondary evidence, not proof.</li>
       <li>Level 3: in pairs, find the cheapest data design that clears the flipped bar.</li>
     </ol>
     <h3>Discuss (10 min)</h3>
