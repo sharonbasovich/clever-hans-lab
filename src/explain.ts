@@ -88,21 +88,30 @@ export function meanBgMass(model: tf.LayersModel, world: World, k = 32, patch = 
 
 export interface Ablation {
   n: number;
+  /** Accuracy on the matched test world that was passed in. */
   acc: number;
   /** Accuracy with the background greyed out (shape only). */
   accNoBg: number;
   /** Accuracy with the shape erased into the background (cue only). */
   accNoFg: number;
-  /** Accuracy on the SAME images with the cue colour inverted, shape
-   *  untouched — the controlled opposite-cue swap. A cheat can't dodge this
-   *  one by learning "neutral → shape, coloured → cheat". */
+  /** Accuracy on a FULLY cue-agreeing paired set (every image's cue agrees
+   *  with its label), generated with the same seed — identical shapes,
+   *  labels and positions as the matched world. */
+  accAgree: number;
+  /** Accuracy on the identical image stream with EVERY cue inverted.
+   *  The agree/swap pair is the controlled opposite-cue swap: because the
+   *  base set is fully cue-agreeing, inverting the cue is strictly harmful
+   *  to a cue-user — a mixed rho<1 base set would let the swap HELP a cheat
+   *  on disagreeing images and cancel the measurement (QA round 3). */
   accSwap: number;
   bgDrop: number;
   fgDrop: number;
+  /** accAgree - accSwap (clamped at 0). */
   swapDrop: number;
-  /** swapDrop / acc in [0,1]: the fraction of matched-test wins that vanish
-   *  when the cue colour is reversed. ~1 = shortcut; ~0 = shape.
-   *  null when the model scored ~nothing — no reliance to attribute. */
+  /** swapDrop / accAgree in [0,1]: the fraction of cue-agreeing wins that
+   *  vanish when the cue colour is reversed on identical images.
+   *  ~1 = shortcut; ~0 = shape; intermediate values are real partial
+   *  reliance. null when accAgree ~0 — no reliance to attribute. */
   cueReliance: number | null;
   /** bgDrop / (bgDrop + fgDrop): the older neutral-fill reliance, kept as a
    *  clearly separate diagnostic. It can UNDER-report cheating when training
@@ -124,17 +133,32 @@ export function ablationReliance(model: tf.LayersModel, world: World, k = 64): A
   const n = Math.min(k, world.n);
   const noBg = new Float32Array(n * IMG_PIXELS * 3);
   const noFg = new Float32Array(n * IMG_PIXELS * 3);
-  // Paired opposite-cue swap: same seed + 'flipped' split regenerates the
-  // identical shapes with every cue inverted (matched and flipped consume the
-  // same rng draws; only the cue interpretation differs). Neutral worlds
-  // carry no cue — there is nothing to swap.
+  // Paired opposite-cue swap, measured on a FULLY cue-agreeing evaluation
+  // set: rho is forced to 1.0 so 'matched' puts every cue on the label's
+  // side and 'flipped' inverts every one of them. Both consume the same rng
+  // draws as the test world (same seed), so all three share identical
+  // shapes/labels/positions — only the cue colour differs. A base set that
+  // mixes agreeing and disagreeing cues (rho<1.0) lets the swap help a
+  // cue-user on the disagreeing half and cancels the measurement — the
+  // round-3 QA mid-rho false-negative.
+  const agreeWorld =
+    world.split === 'neutral'
+      ? null
+      : generateWorld({
+          seed: world.seed,
+          n: world.n,
+          rho: 1.0,
+          cueType: world.cueType,
+          split: 'matched',
+          accessible: world.accessible,
+        });
   const swapWorld =
     world.split === 'neutral'
       ? null
       : generateWorld({
           seed: world.seed,
           n: world.n,
-          rho: world.rho,
+          rho: 1.0,
           cueType: world.cueType,
           split: 'flipped',
           accessible: world.accessible,
@@ -175,25 +199,26 @@ export function ablationReliance(model: tf.LayersModel, world: World, k = 64): A
   const acc = batchAcc(model, world.images, world.labels, n);
   const accNoBg = batchAcc(model, noBg, world.labels, n);
   const accNoFg = batchAcc(model, noFg, world.labels, n);
-  // The swap keeps labels: the flipped twin draws identical classes, so
-  // evaluating swapped pixels against the original labels is the
-  // opposite-cue counterfactual.
-  const accSwap = swapWorld ? batchAcc(model, swapWorld.images, world.labels, n) : acc;
+  // The swap pair shares identical labels (same seed), so evaluating the
+  // inverted-cue pixels against its own labels IS the counterfactual.
+  const accAgree = agreeWorld ? batchAcc(model, agreeWorld.images, agreeWorld.labels, n) : acc;
+  const accSwap = swapWorld ? batchAcc(model, swapWorld.images, swapWorld.labels, n) : acc;
   const bgDrop = Math.max(0, acc - accNoBg);
   const fgDrop = Math.max(0, acc - accNoFg);
-  const swapDrop = Math.max(0, acc - accSwap);
+  const swapDrop = Math.max(0, accAgree - accSwap);
   const denom = bgDrop + fgDrop;
   return {
     n,
     acc,
     accNoBg,
     accNoFg,
+    accAgree,
     accSwap,
     bgDrop,
     fgDrop,
     swapDrop,
     // A model that scored ~nothing has no reliance to attribute — null, not 0.
-    cueReliance: acc > 0.02 ? Math.min(1, swapDrop / acc) : null,
+    cueReliance: accAgree > 0.02 ? Math.min(1, swapDrop / accAgree) : null,
     // A denominator near zero means the model shrugged at both fills —
     // it learned nothing to measure. Report null, not a fake 0.5.
     fillReliance: denom > 0.02 ? bgDrop / denom : null,

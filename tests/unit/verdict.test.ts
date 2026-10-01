@@ -15,6 +15,7 @@ const ab = (over: Partial<Ablation>): Ablation => ({
   acc: 1,
   accNoBg: 1,
   accNoFg: 1,
+  accAgree: 1,
   accSwap: 1,
   bgDrop: 0,
   fgDrop: 0,
@@ -66,11 +67,35 @@ describe('classifyOutcome — the one shared evidence classifier', () => {
     ).toBe('undertrained');
   });
 
+  it('mid reliance + reversal damage = partial shortcut, not inconclusive and not clean', () => {
+    // Round-3 QA repro family: rho0.7/0.85 designs where reversed accuracy
+    // was 30–47% but reliance read mid — those are partial shortcuts.
+    expect(
+      classifyOutcome(
+        ev(0.81, 0.32, 0.7),
+        ab({ accAgree: 0.9, accSwap: 0.45, cueReliance: 0.5, fillReliance: 0.3 }),
+      ),
+    ).toBe('shortcut');
+    expect(
+      classifyOutcome(
+        ev(0.9, 0.62, 0.8),
+        ab({ accAgree: 0.95, accSwap: 0.62, cueReliance: 0.35, fillReliance: 0.4 }),
+      ),
+    ).toBe('partial');
+    // Reliance can be high even when the reversal is survivable — still not clean.
+    expect(
+      classifyOutcome(
+        ev(0.95, 0.85, 0.9),
+        ab({ accAgree: 0.96, accSwap: 0.62, cueReliance: 0.35, fillReliance: 0.2 }),
+      ),
+    ).toBe('partial');
+  });
+
   it('mixed evidence = inconclusive, never a forced story', () => {
     expect(
       classifyOutcome(
         ev(0.9, 0.7, 0.7),
-        ab({ accSwap: 0.6, cueReliance: 0.4, fillReliance: 0.4 }),
+        ab({ accSwap: 0.6, cueReliance: 0.2, fillReliance: 0.4 }),
       ),
     ).toBe('inconclusive');
   });

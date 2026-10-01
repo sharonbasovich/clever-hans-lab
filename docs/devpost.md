@@ -43,20 +43,26 @@ fraction, sample budget) and retrain until the network can't cheat.
   with the measured loss curve — nothing is faked or canned.
 - Three held-out exams: matched / flipped / neutral — the gap is the
   confession.
-- A paired opposite-cue swap — identical images, only the cue colour
-  reversed — as the headline reliance measure (a cheat can't dodge it by
-  learning "neutral → shape, coloured → cheat"), plus neutral-fill
-  ablation and a patch-occlusion heatmap as labelled secondary evidence.
+- A paired opposite-cue swap on a fully cue-agreeing set — identical
+  images, every cue inverted — as the headline reliance measure: every
+  inversion is strictly harmful to a cheat, so the measurement cannot
+  cancel itself (a cheat can't dodge it via "neutral → shape,
+  coloured → cheat" either), plus neutral-fill ablation and a
+  patch-occlusion heatmap as labelled secondary evidence.
 - A redesign level where the win threshold is **derived from measured
   results**, not hard-coded.
 - Reproducible science page: a deterministic headless harness evaluates
-  18 seeds × 3 cue strengths against a strict full reversal, plus a
-  per-seed shuffled-label null control, with bootstrap CIs and pass/fail
-  gates — all committed to the repo and re-verified in CI.
-- The verdict is derived from measured evidence, not scripted: shortcut,
-  honest, undertrained, and inconclusive outcomes each get their own
-  report. A collapsed training run is detected, retried transparently,
-  and disclosed — never hidden.
+  25 seeds × 8 designs (intermediate cheat strengths and neutral-mixed
+  training sets) against a strict full reversal, plus a shuffled-label
+  null control with unrecovered collapses disclosed separately, with
+  bootstrap CIs and pass/fail gates — all committed to the repo and
+  re-verified in CI.
+- The verdict is derived from measured evidence, not scripted:
+  shortcut, partial reliance, honest, undertrained, and inconclusive
+  outcomes each get their own report — and the exam, the quiz and the
+  verdict all read from one shared classifier, so the game can never
+  contradict itself. A collapsed training run is detected, retried
+  transparently, and disclosed — never hidden.
 - Accessible: full keyboard play, aria-live results, canvas text
   alternatives, reduced-motion, and a colour-independent cue mode
   (stripes + brightness, not hue).
@@ -71,7 +77,7 @@ Vite + TypeScript + TensorFlow.js (WebGL, CPU fallback). Fully static —
 no accounts, no backend, no API keys. Deterministic evaluation via
 `@tensorflow/tfjs-node`; Playwright for the e2e tests and the captioned
 demo video; GitHub Actions CI (lint, typecheck, unit tests, smoke + FULL
-18-seed measured harness, build, results verification, e2e incl. lifecycle
+25-seed measured harness, build, results verification, e2e incl. lifecycle
 and 375px); deployed on GitHub Pages.
 
 ## Target users

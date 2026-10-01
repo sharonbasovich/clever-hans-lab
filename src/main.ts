@@ -19,6 +19,8 @@ const demo = params.has('demo');
 const fast = demo || params.has('fast');
 const session = new Session(fast);
 await session.ensureBackend();
+// Exposed for e2e tests (inject measured-evidence objects, re-render screens).
+(window as unknown as { __chlSession: Session }).__chlSession = session;
 
 const routes: Record<string, () => void> = {
   intro: () => renderIntro(session, nav),

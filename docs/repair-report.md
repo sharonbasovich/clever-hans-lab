@@ -1,13 +1,83 @@
 # Repair report — independent QA findings
 
-Round 2 (below) covers the independent review at `0e4fc50`. The round-1
-report for the review at `32540b9` follows it. Every item is verifiable
-from the commit, `results/results.{json,md}`, CI, or the live site. No
-seed, run, or failure was dropped or hidden; the author's own QA
-recording is a smoke check, not independent verification — the findings
-here come from the independent reviewer.
+Round 3 (below) covers the independent review at `9a76f5d`. Rounds 2 and
+1 follow it. Every item is verifiable from the commit,
+`results/results.{json,md}`, CI, or the live site. No seed, run, or
+failure was dropped or hidden; the author's own QA recording is a smoke
+check, not independent verification — the findings here come from the
+independent reviewer.
 
 ---
+
+# Round 3 — findings at 9a76f5d
+
+**R1 — paired swap cancelled itself on mixed cue-agreement sets (high).**
+The cue-swap metric from round 2 evaluated on the swapped twin of the
+*matched* test set — but at rho<1.0 the matched set contains disagreeing
+images, and on those the inversion HELPS a cheater, cancelling the drops
+on agreeing images. QA: 14/39 runs scoring <50% on full reversal read
+reliance 0.23–0.49 → "inconclusive" (e.g. rho0.7 seed31: matched 81%,
+reversed 32.3%, reliance 0.314). Fix: the reliance pair is now a
+**fully cue-agreeing paired evaluation set** — the identical image
+stream (same seed, tested invariant) at rho=1.0, one copy with every cue
+agreeing (`accAgree`) and one with every cue inverted (`accSwap`).
+Every inversion is strictly harmful to a cue-user, so nothing cancels.
+`cueReliance = (accAgree − accSwap) / accAgree`. Mid-rho runs that read
+0.31 before now read 0.6–0.7. Matched and fully reversed accuracy are
+retained alongside, and the classifier (`classifyOutcome`) now has five
+precise outcomes — shortcut / **partial** / shape / undertrained /
+inconclusive — so mid-reliance is named "partial shortcut reliance",
+never laundered into "inconclusive" or "clean".
+
+**R2 — quiz bypassed the shared classifier (high).**
+The Level-2 quiz had its own binary `(cueReliance ?? 0) > 0.5` rule, so
+all 28 inconclusive runs in QA's 90-run set got a false
+"Correct — it really read the shape". Fix: the quiz is wired directly
+to `classifyOutcome` with explicit handling of all five outcomes —
+inconclusive answers report "no clean call — the numbers are genuinely
+mixed" (never marked correct), undertrained keeps its "no call to make"
+state, partial gets a third option ("a bit of both"). Rendered
+browser tests assert the exam note, quiz response and verdict title for
+each of the five outcomes on injected measured evidence — not just the
+classifier unit tests.
+
+**R3 — null gate per-seed bound not statistically justified (medium).**
+Fresh QA seed 58313 read neutral accuracy 65.5%, above the [35,65]%
+per-seed bound; QA's fresh mean was 53.8%, cue-consistency 105.1%, and
+5/10 null runs collapsed (1 recovered). A memorizing null CAN
+legitimately exceed a per-seed bound (a particular shuffle leaves
+residual label-structure the model partially exploits), so the bound
+was never justified. Redesign (predeclared): the gate is a one-sample
+t-check on the MEAN neutral accuracy of non-degenerate nulls
+(|t|≤3, ≥half of seeds non-degenerate) plus mean cue-consistency
+∈[85,115]%. **Unrecovered collapses are excluded and disclosed
+separately** — a constant predictor trivially sits at chance and must
+not pass a chance gate for free. The old failure is retained verbatim:
+this run's seed 58313 reads 65.5% as a disclosed "legacy bound
+violation", and the round-2 gate's numbers (mean matched 39.3%,
+mean|gap| 35.9%, max|gap| 93.7%) stay in `results.md`.
+
+**R4 — coverage: intermediate-rho designs + fresh seeds (medium).**
+The grid grew to 25 seeds × 8 designs: {rho, train-neutral} =
+{1.0,0}, {0.9,0}, {0.85,0.6}, {0.7,0}, {0.7,0.5}, {0.6,0.5}, {0.5,0},
+{0.5,0.6}; QA's disclosed seeds 31/47/58313 are pinned as regression
+seeds and four fresh seeds (42, 1009, 31337, 777333) were predeclared
+before measurement. New gate G6 requires clearly positive mean
+reliance on the {0.7,0} design and strictly above the rho=0.5 baseline
+— the cancellation bug would have read near-chance there. Measured:
+{0.7,0}=0.435, {0.85,0.6}=0.455, {0.5,0}=0.006 — G6 PASS.
+
+**R5 — stale copy (low).** Intro "exploit it in seconds" → "exploit it
+on its own exam"; the unmeasured "WebGL is normally much faster" clause
+removed (the honest measured-timings sentence stays); the screen-reader
+ablation announcement now says "of its wins on cue-agreeing tests
+depended on the cue", not "lived in the background"; the exam note's
+"It never learned shapes" replaced with "On the tested shift, its wins
+depended on the cue — not the shape" (a measured claim about cue
+dependence, not about never learning).
+
+---
+
 
 # Round 2 — findings at 0e4fc50
 

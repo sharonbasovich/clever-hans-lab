@@ -98,6 +98,27 @@ describe('generateWorld', () => {
     }
   });
 
+  it('the fully cue-agreeing paired set shares the matched stream and inverts every cue', () => {
+    // The cue-swap reliance metric evaluates on a rho=1.0 matched world and
+    // its rho=1.0 flipped twin: identical shapes/labels/positions to the
+    // same-seed matched world at ANY rho, with every cue agreeing on one and
+    // every cue inverted on the other — a swap that can never help a cheat.
+    for (const seed of [42, 31, 58313]) {
+      const agree = generateWorld({ seed, n: 100, rho: 1.0, split: 'matched' });
+      const swap = generateWorld({ seed, n: 100, rho: 1.0, split: 'flipped' });
+      const mid = generateWorld({ seed, n: 100, rho: 0.7, split: 'matched' });
+      // Every image's cue agrees in the agree set and disagrees in the swap.
+      expect(empiricalCorrelation(agree)).toBe(1);
+      expect(empiricalCorrelation(swap)).toBe(0);
+      // Same image stream as the mixed-rho matched world: identical
+      // labels and shape masks; only the cue colour differs.
+      expect(Buffer.from(agree.labels.buffer).equals(Buffer.from(mid.labels.buffer))).toBe(true);
+      expect(Buffer.from(agree.fgMasks.buffer).equals(Buffer.from(mid.fgMasks.buffer))).toBe(true);
+      expect(Buffer.from(swap.labels.buffer).equals(Buffer.from(mid.labels.buffer))).toBe(true);
+      for (let i = 0; i < agree.n; i++) expect(swap.cue[i]).toBe(1 - agree.cue[i]);
+    }
+  });
+
   it('mixWorlds concatenates and shuffles deterministically', () => {
     const a = generateWorld({ seed: 21, n: 50, rho: 1.0 });
     const n = generateWorld({ seed: 22, n: 50, rho: 0, split: 'neutral' });

@@ -22,20 +22,30 @@ for (const g of R.gates ?? []) check(g.pass === true, `gate ${g.id} passed: ${g.
 // 2. Schema/scope sanity: all declared seeds and rhos actually measured, and
 //    no seed silently dropped.
 check(
-  R.config.seeds.length >= 8 && R.runs.length === R.config.seeds.length * R.config.rhos.length,
-  `full grid measured (${R.config.seeds.length} seeds x ${R.config.rhos.length} rhos = ${R.runs.length} runs)`,
+  R.config.seeds.length >= 8 && R.runs.length === R.config.seeds.length * R.config.designs.length,
+  `full grid measured (${R.config.seeds.length} seeds x ${R.config.designs.length} designs = ${R.runs.length} runs)`,
 );
 check(R.nullControl?.length === R.config.seeds.length, 'null control ran on every seed');
 check(
   R.runs.every(
-    (r: { accSwap?: number; cueReliance?: number | null }) =>
-      typeof r.accSwap === 'number' && 'cueReliance' in r,
+    (r: { accAgree?: number; accSwap?: number; cueReliance?: number | null; neutralFrac?: number }) =>
+      typeof r.accAgree === 'number' && typeof r.accSwap === 'number' &&
+      'cueReliance' in r && typeof r.neutralFrac === 'number',
   ),
-  'paired cue-swap fields (accSwap, cueReliance) present on every run',
+  'paired cue-agree/cue-swap fields + design (accAgree, accSwap, cueReliance, neutralFrac) present on every run',
 );
 check(
-  R.nullControl?.every((n: { cueSum?: number; neutralAcc?: number }) => typeof n.cueSum === 'number' && typeof n.neutralAcc === 'number'),
-  'null-control cue-consistency (cueSum) + neutral accuracy present',
+  R.nullControl?.every(
+    (n: { cueSum?: number; neutralAcc?: number; unrecovered?: boolean }) =>
+      typeof n.cueSum === 'number' && typeof n.neutralAcc === 'number' &&
+      typeof n.unrecovered === 'boolean',
+  ),
+  'null-control cue-consistency (cueSum) + neutral accuracy + unrecovered flag present',
+);
+check(
+  typeof R.nullStats?.nonDegenerate === 'number' &&
+    R.nullStats.nonDegenerate + R.nullStats.unrecoveredCollapses.length === R.config.seeds.length,
+  'null stats account for every seed (non-degenerate + unrecovered)',
 );
 check(
   R.runs.every((r: { collapsed?: boolean; recovered?: boolean }) => !r.collapsed || r.recovered !== undefined),

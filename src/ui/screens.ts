@@ -29,7 +29,7 @@ export function renderIntro(session: Session, nav: Nav): void {
     <p class="hook">1907: a horse "did maths" by reading his trainer's face.<br>
     Today: your neural network is about to pull the same trick — and you'll catch it.</p>
     <p class="sub">You will plant a cheat in a synthetic dataset, watch a real CNN exploit it
-    in seconds, prove it by erasing the evidence, then redesign the data until it can't cheat.
+    on its own exam, prove it by erasing the evidence, then redesign the data until it can't cheat.
     Everything trains in your browser. Nothing is faked.</p>
   `;
   wrap.append(
@@ -127,7 +127,7 @@ export function renderTrain(session: Session, nav: Nav): void {
   const backend = tf.getBackend();
   stats.after(
     el('p', { class: 'hint' },
-      `Backend: ${backend}. Measured on the live site: ~164 s on the pure-JS CPU fallback, ~639 s under a 4× CPU slowdown — the progress bar is real. WebGL is normally much faster but was not formally measured; phones were not tested.`),
+      `Backend: ${backend}. Measured on the live site: ~164 s on the pure-JS CPU fallback, ~639 s under a 4× CPU slowdown — the progress bar is real. Other devices and backends were not formally measured.`),
   );
   const t0 = performance.now();
 
@@ -249,9 +249,16 @@ export function renderExam(session: Session, nav: Nav): void {
   } else if (verdictKind === 'shortcut') {
     panel.append(
       el('p', { class: 'note' },
-        `It aced the matched exam (${pct(ev.matched.acc)}) and collapsed on the reversal (${pct(ev.flipped.acc)}). ` +
-        `It never learned shapes — it learned the cheat.` +
+        `It aced the matched exam (${pct(ev.matched.acc)}) and collapsed on the full reversal (${pct(ev.flipped.acc)}). ` +
+        `On the tested shift, its wins depended on the cue — not the shape.` +
         (isL3 ? ` The data still carries a usable cheat — try lower rho or more neutral samples.` : ` Now prove it: where was it looking?`)),
+    );
+  } else if (verdictKind === 'partial') {
+    panel.append(
+      el('p', { class: 'note' },
+        `Partial shortcut reliance: it kept ${pct(ev.flipped.acc)} on the full reversal (matched ${pct(ev.matched.acc)}), ` +
+        `and the cue swap says ${relTxt} of its wins still needed the cue — some shape, some cheat.` +
+        (isL3 ? ` Push rho lower or add neutral samples to take the rest of the cheat away.` : '')),
     );
   } else if (isL3 && verdictKind === 'shape') {
     panel.append(
@@ -332,7 +339,7 @@ export function renderHeatmap(session: Session, nav: Nav): void {
   };
   tri.append(
     mkCard('Original', 'img', ab.acc, 'Model accuracy on untouched matched tests.'),
-    mkCard('Swap the cue', 'swap', ab.accSwap, 'Identical shapes, cue colour reversed. The reliance test that a cheat cannot dodge.'),
+    mkCard('Swap the cue', 'swap', ab.accSwap, `Identical image stream, every cue agreeing (${pct(ab.accAgree)}), then every cue inverted — the reliance test a cheat can neither dodge nor cancel.`),
     mkCard('Hide the background', 'noBg', ab.accNoBg, 'Same images, background → grey. A separate fill diagnostic.'),
     mkCard('Erase the shape', 'noFg', ab.accNoFg, 'Same images, shape → background colour. Only the cue is left.'),
   );
@@ -349,8 +356,8 @@ export function renderHeatmap(session: Session, nav: Nav): void {
           el('div', { class: 'num' }, reliancePct),
           el('div', { class: 'lbl' },
             learnedNothing
-              ? 'of matched wins lost on cue reversal — n/a: it learned nothing measurable'
-              : 'of its matched-test wins vanished when the cue colour was reversed (cueReliance)'),
+              ? 'of cue-agreeing wins lost on cue reversal — n/a: it learned nothing measurable'
+              : 'of its wins on cue-agreeing tests vanished when the cue colour was inverted (cueReliance)'),
         );
         return s;
       })(),
@@ -359,7 +366,7 @@ export function renderHeatmap(session: Session, nav: Nav): void {
       learnedNothing
         ? `Cue swap cost it ${pct(ab.swapDrop)}; erasing the shape cost ${pct(ab.fgDrop)}; hiding the background cost ${pct(ab.bgDrop)}. ` +
           `Nothing measurable was learned — there is no reliance to attribute. A patch-level occlusion heatmap is shown below.`
-        : `cueReliance = (matched − cue-swap) ÷ matched = ${reliancePct} — measured on identical images with only the cue colour flipped. ` +
+        : `cueReliance = (cue-agreeing acc − cue-inverted acc) ÷ cue-agreeing acc = ${reliancePct} — measured on a paired set where every cue agreed, so inverting it can only hurt a cue-user, never help it; nothing cancels. ` +
           `Separately: the older neutral-fill reliance is ${fillPct} (erasing the shape cost ${pct(ab.fgDrop)}, greying the background cost ${pct(ab.bgDrop)}). ` +
           `Grey fill alone can hide a cheat that learned "neutral → shape, coloured → cheat", which is why the swap is the headline. A patch-level occlusion heatmap is shown below for the curious.`,
     ),
@@ -383,36 +390,56 @@ export function renderHeatmap(session: Session, nav: Nav): void {
   wrap.append(side);
   panel.append(wrap);
 
+  // The quiz is wired to the SAME classifier as the exam note and the verdict
+  // — it can never disagree with them or declare a wrong call "correct".
   const quiz = el('div', { class: 'quiz-options' });
   const q = el('h3', {}, 'Level 2 — your call: where did it look?');
   panel.append(q, quiz);
+  const ev = session.evaluation!;
+  const kind = classifyOutcome(ev, ab);
   const optShape = el('button', { class: 'btn secondary' }, 'Mostly at the shape — it honestly classified');
-  const optBg = el('button', { class: 'btn secondary' }, 'Mostly at the background — it took the shortcut');
+  const optBoth = el('button', { class: 'btn secondary' }, 'A bit of both — it leans on the cue too');
+  const optBg = el('button', { class: 'btn secondary' }, 'Mostly at the cue — it took the shortcut');
   const verdict = el('p', { class: 'note', role: 'status' });
-  if (learnedNothing) {
+  if (kind === 'undertrained' || session.stillCollapsed) {
     // No reliance to attribute — don't force a shortcut/shape story.
     quiz.append(
       el('p', { class: 'note', role: 'status' },
-        'No call to make: the ablation shows this model learned nothing measurable, so it wasn\'t looking anywhere. Retrain and ask again.'),
+        'No call to make: this model learned nothing measurable, so it wasn\'t looking anywhere. Retrain and ask again.'),
     );
+  } else if (kind === 'inconclusive') {
+    // The evidence supports no clean call — that IS the answer.
+    const opts = [optShape, optBoth, optBg];
+    const sayMixed = () => {
+      verdict.textContent =
+        `Honest answer: no clean call. The numbers are genuinely mixed — cue-swap reliance ${reliancePct}, ` +
+        `flipped ${pct(ev.flipped.acc)} vs matched ${pct(ev.matched.acc)}. Mixed evidence is a real result.`;
+      for (const o of opts) o.disabled = true;
+      announce(verdict.textContent);
+    };
+    for (const o of opts) o.addEventListener('click', sayMixed);
+    quiz.append(optShape, optBoth, optBg, verdict);
   } else {
-    const answer = (pickedBg: boolean) => {
-      // Same classifier family as exam/verdict: cue-swap reliance is the call.
-      const correct = (ab.cueReliance ?? 0) > 0.5;
-      const right = pickedBg === correct;
-      verdict.textContent = right
-        ? correct
-          ? `Correct — reversing the cue colour on identical shapes dropped it to ${pct(ab.accSwap)}. You caught Hans.`
-          : `Correct — reversing the cue colour still left ${pct(ab.accSwap)}: it really read the shape.`
-        : `Look again — the cue swap says it relied on the ${correct ? 'background' : 'shape'} ` +
-          `(cueReliance ${reliancePct}).`;
+    const expected = kind === 'shortcut' ? 'cue' : kind === 'shape' ? 'shape' : 'both';
+    const answer = (picked: 'shape' | 'both' | 'cue') => {
+      const right = picked === expected;
+      const truth =
+        expected === 'cue'
+          ? `the cue — inverting it on cue-agreeing images dropped it to ${pct(ab.accSwap)}`
+          : expected === 'shape'
+            ? `the shape — inverting the cue still left ${pct(ab.accSwap)}`
+            : `a bit of both — the cue swap cost it ${pct(ab.swapDrop)} of its cue-agreeing wins`;
+      verdict.textContent = (right ? 'Correct — ' : 'Not quite — ') +
+        `the cue swap says it relied on ${truth} (cueReliance ${reliancePct}).`;
       optShape.disabled = true;
+      optBoth.disabled = true;
       optBg.disabled = true;
       announce(verdict.textContent);
     };
-    optShape.addEventListener('click', () => answer(false));
-    optBg.addEventListener('click', () => answer(true));
-    quiz.append(optShape, optBg, verdict);
+    optShape.addEventListener('click', () => answer('shape'));
+    optBoth.addEventListener('click', () => answer('both'));
+    optBg.addEventListener('click', () => answer('cue'));
+    quiz.append(optShape, optBoth, optBg, verdict);
   }
 
   panel.append(
@@ -421,13 +448,13 @@ export function renderHeatmap(session: Session, nav: Nav): void {
     ),
   );
   app.append(panel);
-  announce(`Ablation done. ${learnedNothing ? 'nothing measurable learned.' : reliancePct + ' of accuracy lived in the background.'}`);
+  announce(`Ablation done. ${learnedNothing ? 'nothing measurable learned.' : reliancePct + ' of its wins on cue-agreeing tests depended on the cue.'}`);
   focusMain();
 }
 
 // ---------------------------------------------------------------- verdict ---
 
-// The verdict derives from measured evidence — four honest outcomes, never a
+// The verdict derives from measured evidence — five honest outcomes, never a
 // pre-written story.
 export function renderVerdict(session: Session, nav: Nav): void {
   const app = document.getElementById('app')!;
@@ -445,15 +472,27 @@ export function renderVerdict(session: Session, nav: Nav): void {
     shortcut: {
       title: 'Guilty: shortcut learning',
       evidence: `It scored <strong>${pct(ev.matched.acc)}</strong> with the cheat intact and
-        <strong>${pct(ev.flipped.acc)}</strong> when the cheat was reversed. On identical images with only
-        the cue colour swapped it scored <strong>${pct(ab.accSwap)}</strong> — <strong>${rel}</strong>
-        of its correct answers needed the background cue. (Neutral-fill reliance, reported separately:
+        <strong>${pct(ev.flipped.acc)}</strong> when the cheat was reversed. On identical cue-agreeing
+        images with only the cue colour inverted it scored <strong>${pct(ab.accSwap)}</strong> —
+        <strong>${rel}</strong> of its wins on that shift needed the cue. (Neutral-fill reliance, reported separately:
         ${fillRel}.) It didn't fail the exam; it answered a different question than the one you asked.`,
       meaning: `This is <strong>shortcut learning</strong>: when a spurious cue predicts the label,
         gradient descent finds it first. Documented real-world analogues include a husky-vs-wolf
         classifier that keyed on snow (Ribeiro et al., 2016) and a pneumonia model that exploited
         hospital-system confounds (Zech et al., 2018).`,
       primary: 'Level 3 — fix the data →',
+    },
+    partial: {
+      title: 'Partly guilty: partial shortcut reliance',
+      evidence: `It scored <strong>${pct(ev.matched.acc)}</strong> with the cheat intact and
+        <strong>${pct(ev.flipped.acc)}</strong> on the full reversal. On the paired cue-agreeing set,
+        inverting the cue dropped it to <strong>${pct(ab.accSwap)}</strong> — <strong>${rel}</strong>
+        of its wins still needed the cue. That is real reliance, just not dominant.
+        (Neutral-fill reliance, reported separately: ${fillRel}.)`,
+      meaning: `The data still rewards the cheat part of the time. The model learned some shape
+        <em>and</em> keeps leaning on the cue — push the correlation lower or add more neutral
+        samples to take the rest of the cheat away.`,
+      primary: 'Back to Level 3 →',
     },
     shape: {
       title: 'Honest: it learned the shape',
@@ -610,12 +649,12 @@ export function renderLab(_session: Session, _nav: Nav): void {
   const tableWrap = el('div', { style: 'overflow-x:auto' });
   const table = el('table', { class: 'results' });
   table.innerHTML = `
-    <thead><tr><th>seed</th><th>rho</th><th>matched</th><th>cue-swap</th><th>flipped</th><th>neutral</th><th>gap</th><th>cueReliance</th><th>notes</th></tr></thead>
+    <thead><tr><th>seed</th><th>rho</th><th>train-neutral</th><th>matched</th><th>cue-agree</th><th>cue-swap</th><th>flipped</th><th>neutral</th><th>gap</th><th>cueReliance</th><th>notes</th></tr></thead>
     <tbody>
       ${R.runs
         .map(
           (r) =>
-            `<tr><td>${r.seed}</td><td>${r.rho.toFixed(1)}</td><td>${pct(r.matchedAcc)}</td><td>${pct(r.accSwap)}</td><td>${pct(r.flippedAcc)}</td><td>${pct(r.neutralAcc)}</td><td>${pct(r.gap)}</td><td>${r.cueReliance === null ? 'n/a' : r.cueReliance.toFixed(3)}</td><td>${(r.collapsed ?? false) ? (r.recovered ? 'collapse→retried' : 'collapsed') : ''}</td></tr>`,
+            `<tr><td>${r.seed}</td><td>${r.rho}</td><td>${pct(r.neutralFrac ?? 0, 0)}</td><td>${pct(r.matchedAcc)}</td><td>${pct(r.accAgree ?? NaN)}</td><td>${pct(r.accSwap)}</td><td>${pct(r.flippedAcc)}</td><td>${pct(r.neutralAcc)}</td><td>${pct(r.gap)}</td><td>${r.cueReliance === null ? 'n/a' : r.cueReliance.toFixed(3)}</td><td>${(r.collapsed ?? false) ? (r.recovered ? 'collapse→retried' : 'collapsed (unrecovered)') : ''}</td></tr>`,
         )
         .join('')}
     </tbody>`;
@@ -632,15 +671,20 @@ export function renderLab(_session: Session, _nav: Nav): void {
       )
       .join('') +
     '</ul>' +
-    `<p class="lede">Null control (shuffled labels, rho=1.0): what must stay at chance is the
-    <em>shape-only</em> accuracy — a model whose labels were random cannot learn shape. Per seed:
-    ${R.nullControl
-      .map((n) => `${n.seed}→neutral ${pct(n.neutralAcc)} (matched ${pct(n.matchedAcc)}, matched+flipped ${pct(n.cueSum)})`)
-      .join(', ')}; mean neutral ${pct(
-      R.nullControl.reduce((s, n) => s + n.neutralAcc, 0) / R.nullControl.length,
-    )}. Matched accuracy is free to sit anywhere — the model may fit labels via the cue with an
-    arbitrary sign — but matched+flipped ≈ 100% shows its answers stayed cue-consistent.
-    Derived L3 win threshold: ${pct(R.derived.l3FlippedThreshold)} flipped accuracy (full reversal).</p>`;
+    (() => {
+      const nonDeg = R.nullControl.filter((n: { unrecovered?: boolean }) => !n.unrecovered);
+      const deg = R.nullControl.filter((n: { unrecovered?: boolean }) => n.unrecovered);
+      return `<p class="lede">Null control (shuffled labels, rho=1.0): what must stay at chance is the
+      <em>shape-only</em> accuracy — a model whose labels were random cannot learn shape. Per seed
+      (non-degenerate runs only): ${nonDeg
+        .map((n) => `${n.seed}→neutral ${pct(n.neutralAcc)} (matched ${pct(n.matchedAcc)}, matched+flipped ${pct(n.cueSum)})`)
+        .join(', ')}; mean neutral ${pct(
+        nonDeg.reduce((s, n) => s + n.neutralAcc, 0) / Math.max(1, nonDeg.length),
+      )} over ${nonDeg.length} runs. Matched accuracy is free to sit anywhere — the model may fit
+      labels via the cue with an arbitrary sign — but matched+flipped ≈ 100% shows its answers
+      stayed cue-consistent. ${deg.length ? `Unrecovered collapses (a constant predictor trivially scores ~50%, so they are shown separately, never counted as passing evidence): seeds ${deg.map((n) => n.seed).join(', ')}.` : 'No unrecovered collapses.'}
+      Derived L3 win threshold: ${pct(R.derived.l3FlippedThreshold)} flipped accuracy (full reversal).</p>`;
+    })();
   panel.append(
     gates,
     el('p', { class: 'note' },

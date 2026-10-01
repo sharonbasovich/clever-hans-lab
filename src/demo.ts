@@ -44,7 +44,7 @@ export async function runDemo(session: Session): Promise<void> {
     await sleep(1000 * D);
     const ab = session.ablation!;
     caption(
-      `Same shapes, cue colour reversed → ${pct(ab.accSwap)} correct. Hide the background → ${pct(ab.accNoBg)}. Its answers lived in the cue.`,
+      `Every cue agreeing, then every cue inverted → ${pct(ab.accSwap)} correct. Hide the background → ${pct(ab.accNoBg)}. Its answers lived in the cue.`,
       'heatmap2',
     );
     await sleep(11000 * D);
@@ -79,7 +79,7 @@ export async function runDemo(session: Session): Promise<void> {
     await sleep(8000 * D);
 
     location.hash = '#/lab';
-    caption('Reproducible: 18 seeds, per-seed results and gates, code on GitHub.', 'lab');
+    caption('Reproducible: 25 seeds, per-seed results and gates, code on GitHub.', 'lab');
     await sleep(9000 * D);
 
     location.hash = '#/teacher';

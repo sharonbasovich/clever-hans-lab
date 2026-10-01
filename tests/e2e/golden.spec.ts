@@ -33,13 +33,13 @@ test('golden path through all three levels', async ({ page }) => {
   await page.getByRole('button', { name: /Where was it looking/ }).click();
   await expect(page.getByRole('heading', { name: 'Where was it looking?' })).toBeVisible();
   await expect(page.locator('.heatmap-wrap canvas').first()).toBeVisible();
-  const bgOption = page.getByRole('button', { name: /Mostly at the background/ });
+  const bgOption = page.getByRole('button', { name: /Mostly at the cue/ });
   if (await bgOption.isVisible().catch(() => false)) await bgOption.click();
   await page.getByRole('button', { name: /Deliver the verdict/ }).click();
 
   // The verdict is derived, not hard-coded: assert the screen rendered a real
-  // verdict (any of the four honest outcomes).
-  await expect(page.locator('h2')).toContainText(/Guilty|Honest|Inconclusive/);
+  // verdict (any of the honest outcomes).
+  await expect(page.locator('h2')).toContainText(/Guilty|Partly|Honest|Inconclusive/);
   await page.getByRole('button', { name: /Level 3 — fix the data/ }).click();
 
   await expect(page.getByRole('heading', { name: "Design the training set so it can't cheat" })).toBeVisible();
@@ -52,8 +52,8 @@ test('golden path through all three levels', async ({ page }) => {
 
   await page.goto('/#/lab');
   await expect(page.getByRole('heading', { name: /Lab results/ })).toBeVisible();
-  // 18 seeds x 3 rhos.
-  await expect(page.locator('table.results tbody tr')).toHaveCount(54);
+  // 25 seeds x 8 designs.
+  await expect(page.locator('table.results tbody tr')).toHaveCount(200);
   await expect(page.locator('.gate-pass').first()).toBeVisible();
 
   await page.goto('/#/teacher');
@@ -124,6 +124,121 @@ test('lifecycle: a11y toggle + restart + navigate-away cannot leak a stale run',
   await page.goto('/?fast=1#/train');
   await expect(page.getByRole('button', { name: /Start training|Retry training/ })).toBeEnabled();
 });
+
+// Round-3 P1: the rendered quiz must agree with the shared classifier on
+// every outcome — exam note, quiz response and verdict title are asserted on
+// injected measured evidence for all five classifier outcomes, in a real
+// browser, not only via classifyOutcome unit tests.
+const OUTCOME_CASES = [
+  {
+    name: 'shortcut',
+    ev: { matched: 1, flipped: 0.02, neutral: 0.55, gap: 0.98 },
+    ab: { accAgree: 1, accSwap: 0.02, cueReliance: 0.98, fillReliance: 0.9 },
+    examNote: /depended on the cue/,
+    quizClick: /Mostly at the cue/,
+    quizText: /Correct — /,
+    verdictTitle: /Guilty: shortcut learning/,
+  },
+  {
+    name: 'partial',
+    ev: { matched: 0.9, flipped: 0.62, neutral: 0.8, gap: 0.28 },
+    ab: { accAgree: 0.95, accSwap: 0.62, cueReliance: 0.35, fillReliance: 0.4 },
+    examNote: /Partial shortcut reliance/,
+    quizClick: /A bit of both/,
+    quizText: /Correct — /,
+    verdictTitle: /Partly guilty/,
+  },
+  {
+    name: 'shape',
+    ev: { matched: 0.955, flipped: 0.913, neutral: 0.9, gap: 0.042 },
+    ab: { accAgree: 0.96, accSwap: 0.9, cueReliance: 0.09, fillReliance: 0.1 },
+    examNote: /challenge bar|honest|shape/,
+    quizClick: /Mostly at the shape/,
+    quizText: /Correct — /,
+    verdictTitle: /Honest: it learned the shape/,
+  },
+  {
+    name: 'undertrained',
+    ev: { matched: 0.51, flipped: 0.49, neutral: 0.5, gap: 0.02 },
+    ab: { accAgree: 0.5, accSwap: 0.5, cueReliance: 0, fillReliance: 0 },
+    examNote: /didn't learn|collapsed|retrain/i,
+    verdictTitle: /learned almost nothing/,
+  },
+  {
+    name: 'inconclusive',
+    ev: { matched: 0.99, flipped: 0.89, neutral: 0.973, gap: 0.1 },
+    ab: { accAgree: 0.99, accSwap: 0.9, cueReliance: 0.1, fillReliance: 0.2 },
+    examNote: /mixed|inconclusive|no clean/i,
+    quizClick: /Mostly at the shape/, // any click: must NOT be marked 'Correct'
+    quizText: /no clean call|mixed/,
+    verdictTitle: /Inconclusive: mixed evidence/,
+  },
+];
+
+for (const c of OUTCOME_CASES) {
+  test(`rendered outcome ${c.name}: exam note, quiz and verdict agree with the classifier`, async ({
+    page,
+  }) => {
+    const consoleErrors: string[] = [];
+    page.on('pageerror', (e) => consoleErrors.push(String(e)));
+    await page.goto('/?fast=1');
+    await page.getByRole('button', { name: /Level 1 — Meet Hans/ }).click();
+    await page.getByRole('button', { name: 'Train the network →' }).click();
+    await page.getByRole('button', { name: 'Start training' }).click();
+    await expect(page.getByRole('heading', { name: 'Three exams, one confession' })).toBeVisible({
+      timeout: 180_000,
+    });
+
+    // Inject the measured evidence for this outcome and re-render each screen.
+    await page.evaluate((c) => {
+      const s = (window as unknown as { __chlSession: any }).__chlSession;
+      const m = (acc: number, split: string) => ({ split, n: 100, correct: acc, acc });
+      s.evaluation = {
+        matched: m(c.ev.matched, 'matched'),
+        flipped: m(c.ev.flipped, 'flipped'),
+        neutral: m(c.ev.neutral, 'neutral'),
+        gap: c.ev.gap,
+      };
+      s.ablation = {
+        n: 100,
+        acc: c.ev.matched,
+        accNoBg: 0.5,
+        accNoFg: 0.5,
+        accAgree: c.ab.accAgree,
+        accSwap: c.ab.accSwap,
+        bgDrop: 0.1,
+        fgDrop: 0.1,
+        swapDrop: c.ab.accAgree - c.ab.accSwap,
+        cueReliance: c.ab.cueReliance,
+        fillReliance: c.ab.fillReliance,
+        swapWorld: null,
+      };
+      s.stillCollapsed = false;
+      s.bgMass = 0.5;
+      // hash is already '#/exam' — navigate away first so hashchange re-renders.
+      location.hash = '#/lab';
+      location.hash = '#/exam';
+    }, c);
+    if (c.examNote) await expect(page.locator('.note').last()).toContainText(c.examNote);
+
+    await page.evaluate(() => (location.hash = '#/heatmap'));
+    await expect(page.getByRole('heading', { name: 'Where was it looking?' })).toBeVisible();
+    if (c.name === 'undertrained') {
+      await expect(page.locator('.quiz-options .note')).toContainText(/No call to make/);
+    } else {
+      await page.getByRole('button', { name: c.quizClick! }).click();
+      const quizNote = page.locator('.quiz-options .note');
+      await expect(quizNote).toContainText(c.quizText!);
+      if (c.name === 'inconclusive') {
+        await expect(quizNote).not.toContainText(/Correct/);
+      }
+    }
+
+    await page.evaluate(() => (location.hash = '#/verdict'));
+    await expect(page.locator('h2')).toContainText(c.verdictTitle);
+    expect(consoleErrors, `console errors: ${consoleErrors.join(' | ')}`).toEqual([]);
+  });
+}
 
 test('keyboard access and 375px width', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 700 });
