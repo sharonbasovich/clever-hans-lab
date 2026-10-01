@@ -12,8 +12,8 @@ In 1907 a horse named Clever Hans wowed Europe by "doing maths" — tapping
 out answers with his hoof. He wasn't counting. He was reading tiny, involuntary
 cues in his trainer's face. Today's neural networks pull the same trick: a
 "wolf" classifier that learned snow, a pneumonia model that learned a hospital
-watermark. I wanted people to *feel* that failure mode, not just read about
-it — so I built a game where **you** plant the cheat, watch a real neural
+watermark. Clever Hans Lab lets you *feel* that failure mode instead of
+reading about it — a game where **you** plant the cheat, watch a real neural
 network exploit it, and then have to fix the data so it can't.
 
 ## Problem
@@ -31,9 +31,11 @@ Clever Hans Lab is a zero-install browser game. You generate a synthetic
 dataset of shapes where background colour perfectly predicts the label
 (red↔circle, blue↔triangle). A real convolutional network trains in your
 browser — live loss curve, real gradients, no mocks. It aces the matched
-test. Then you flip the colours and it collapses to ~0%: it never learned
-shape at all. A paired cue swap proves it: show the *same* images with
-only the cue colour inverted and the model's correct answers vanish.
+test. Then you reverse every cue and measured accuracy collapses to ~0%
+(all 25 seeds at rho=1.0): under that tested shift, its wins depended on
+the cue, not the shape. A paired cue swap is the controlled intervention:
+show the *same* images with only the cue colour inverted and its correct
+answers drop.
 In the last level you redesign the training data (cue strength, neutral
 fraction, sample budget) and retrain until the network can't cheat.
 
@@ -41,14 +43,19 @@ fraction, sample budget) and retrain until the network can't cheat.
 
 - Real TensorFlow.js training in-browser (conv → conv → dense, ~12k params)
   with the measured loss curve — nothing is faked or canned.
-- Three held-out exams: matched / flipped / neutral — the gap is the
-  confession.
-- A paired opposite-cue swap on a fully cue-agreeing set — identical
-  images, every cue inverted — as the headline reliance measure: every
-  inversion is strictly harmful to a cheat, so the measurement cannot
-  cancel itself (a cheat can't dodge it via "neutral → shape,
-  coloured → cheat" either), plus neutral-fill ablation and a
-  patch-occlusion heatmap as labelled secondary evidence.
+- Three separately generated exams: matched / flipped / neutral — the
+  gap is the confession. (Exact images are deduplicated between train
+  and test; the finite synthetic space means individual shape+label
+  combinations do recur — a disclosed limitation, which is why the
+  reversal and swap evidence carry the argument.)
+- A paired opposite-cue swap on a fully cue-agreeing evaluation set —
+  the identical image stream with only the cue inverted — as the
+  headline reliance measure. It is a designed controlled intervention:
+  on a set where every cue agrees, a harmful-helpful cancellation is
+  impossible by construction (the mixed-base version cancelled itself —
+  the bug independent QA caught), and measured reliance falls from 1.000
+  at rho=1.0 to ~0.006 at rho=0.5. Neutral-fill ablation and a
+  patch-occlusion heatmap remain as labelled secondary evidence.
 - A redesign level where the win threshold is **derived from measured
   results**, not hard-coded.
 - Reproducible science page: a deterministic headless harness evaluates
@@ -59,10 +66,11 @@ fraction, sample budget) and retrain until the network can't cheat.
   re-verified in CI.
 - The verdict is derived from measured evidence, not scripted:
   shortcut, partial reliance, honest, undertrained, and inconclusive
-  outcomes each get their own report — and the exam, the quiz and the
-  verdict all read from one shared classifier, so the game can never
-  contradict itself. A collapsed training run is detected, retried
-  transparently, and disclosed — never hidden.
+  outcomes each get their own report. The exam, the quiz and the verdict
+  all read from one shared classifier — rendered browser tests verify
+  each outcome stays consistent across all three surfaces. A collapsed
+  training run is detected, retried transparently, and disclosed — never
+  hidden.
 - Accessible: full keyboard play, aria-live results, canvas text
   alternatives, reduced-motion, and a colour-independent cue mode
   (stripes + brightness, not hue).
@@ -121,13 +129,15 @@ From `demo/shots/` —
 
 ## Team
 
-Sharon Basovich (University of Waterloo) — solo.
+Sharon Basovich (University of Waterloo). Team membership beyond Sharon
+is pending final entrant/team confirmation.
 
 ## AI assistance disclosure
 
-Built with substantial assistance from Devin (Cognition AI): implementation,
-test design, evaluation harness, and documentation drafts. Conception,
-direction, review, and submission decisions are mine. The science is cited
-in-app (Pfungst 1907; Lapuschkin et al. 2019; Geirhos et al. 2020; Ribeiro
-et al. 2016 — the snow/husky example; Zech et al. 2018 — hospital-confound
-shortcut).
+Built with AI-led assistance through dot and Devin (Cognition AI) under
+Sharon's authorization: ideation, implementation, tests, evaluation
+harness, and documentation were AI-produced and iterated through rounds
+of independent review. Any submission decision is Sharon's. The science
+is cited in-app (Pfungst 1907; Lapuschkin et al. 2019; Geirhos et al.
+2020; Ribeiro et al. 2016 — the snow/husky example; Zech et al. 2018 —
+hospital-confound shortcut).

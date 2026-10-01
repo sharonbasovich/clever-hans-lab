@@ -13,8 +13,9 @@ deterministic headless harness regenerates.
 
 **Live demo:** https://sharonbasovich.github.io/clever-hans-lab/
 
-Built for the ML Empowerment Build Challenge 3.0 by Sharon Basovich
-(University of Waterloo), solo.
+Built for the ML Empowerment Build Challenge 3.0. Entrant: Sharon
+Basovich (University of Waterloo); team membership beyond the entrant
+is pending final confirmation.
 
 ## Quickstart
 
@@ -66,7 +67,8 @@ rho.
   near-zero readings a mixed-base swap produced before the fix
   (round-3 cancellation bug: helpful swaps on disagreeing images
   cancelled harmful ones; the metric now runs on a fully cue-agreeing
-  paired set where every inversion is strictly harmful to a cue-user).
+  paired set, a designed intervention where helpful swaps cannot exist
+  by construction).
 - **rho = 0.5** — no cheat planted, no gap, shape learned; mean cue-swap
   reliance 0.006.
 - **Null control** — labels shuffled on all 25 seeds. 21 non-degenerate
@@ -122,16 +124,21 @@ targets T1/T2. Everything else matches the brief.
 - `src/model.ts` + `src/train.ts` — a small CNN (conv 8×3 → pool → conv 16×3
   → pool → dense 32 → softmax 2, ~12k params) trained with tf.js Adam. Seeded
   shuffling; the loss curve on screen is the measured curve.
-- `src/evaluate.ts` — three held-out splits: **matched** (training rule
-  holds), **flipped** (cue↔label mapping reversed), **neutral** (grey
-  background). The gap is the confession.
+- `src/evaluate.ts` — three separately generated exam splits:
+  **matched** (training rule holds), **flipped** (cue↔label mapping
+  reversed), **neutral** (grey background). Exact images are
+  deduplicated between train and test; the finite synthetic space means
+  individual shape+label combinations do recur (a disclosed limitation —
+  the reversal and swap evidence carry the argument). The gap is the
+  confession.
 - `src/explain.ts` — "where did it look" probes: the headline
   **paired cue-swap reliance** — on a fully cue-agreeing set (rho=1.0,
   same seed → identical shapes/labels/positions), invert EVERY cue:
   `cueReliance` = fraction of those wins lost. Because the base set
-  agrees completely, every inversion is strictly harmful to a cue-user —
-  on a mixed-rho base the same swap would HELP a cheat on disagreeing
-  images and cancel itself (the round-3 false-negative QA caught). Kept
+  agrees completely, a harmful-helpful cancellation is impossible by
+  construction — on a mixed-rho base the same swap would HELP a cheat on
+  disagreeing images and cancel itself (the round-3 false-negative QA
+  caught). Kept
   as a labelled secondary: **neutral-fill ablation** (`fillReliance`),
   which can also under-report when training includes neutral
   backgrounds; plus patch-occlusion log-prob heatmaps for the curious.
@@ -195,10 +202,11 @@ the harness only). See `THIRD_PARTY.md` for licenses.
 
 ## AI assistance disclosure
 
-Built with substantial assistance from Devin (Cognition AI): implementation,
-test design, evaluation harness, documentation drafts, and this README.
-Conception, direction, review, and submission decisions are the author's.
-The underlying science is cited on the teacher page (Pfungst 1907;
+Built with AI-led assistance through dot and Devin (Cognition AI) under
+Sharon's authorization: ideation, implementation, tests, evaluation
+harness, and documentation were AI-produced and iterated through rounds
+of independent review. Any submission decision is Sharon's. The
+underlying science is cited on the teacher page (Pfungst 1907;
 Lapuschkin et al. 2019; Geirhos et al. 2020).
 
 ## Build timeline
