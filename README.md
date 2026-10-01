@@ -66,9 +66,10 @@ rho.
   {0.85, neutral 0.6} — clearly detected partial reliance, not the
   near-zero readings a mixed-base swap produced before the fix
   (round-3 cancellation bug: helpful swaps on disagreeing images
-  cancelled harmful ones; the metric now runs on a fully cue-agreeing
-  paired set, a designed intervention where helpful swaps cannot exist
-  by construction).
+  cancelled harmful ones; the paired diagnostic starts from examples
+  whose background cue agrees with the label, then reverses only that
+  cue while preserving the shape — removing the mixed-baseline
+  dilution).
 - **rho = 0.5** — no cheat planted, no gap, shape learned; mean cue-swap
   reliance 0.006.
 - **Null control** — labels shuffled on all 25 seeds. 21 non-degenerate
@@ -134,11 +135,13 @@ targets T1/T2. Everything else matches the brief.
 - `src/explain.ts` — "where did it look" probes: the headline
   **paired cue-swap reliance** — on a fully cue-agreeing set (rho=1.0,
   same seed → identical shapes/labels/positions), invert EVERY cue:
-  `cueReliance` = fraction of those wins lost. Because the base set
-  agrees completely, a harmful-helpful cancellation is impossible by
-  construction — on a mixed-rho base the same swap would HELP a cheat on
-  disagreeing images and cancel itself (the round-3 false-negative QA
-  caught). Kept
+  `cueReliance` = fraction of those wins lost. The paired diagnostic
+  starts from examples whose background cue agrees with the label, then
+  reverses only that cue while preserving the shape. This removes the
+  mixed-baseline dilution found in the earlier implementation (the
+  round-3 false-negative QA caught). The reported accuracy change is
+  aggregate evidence for this controlled test, not a complete causal
+  characterization of every prediction. Kept
   as a labelled secondary: **neutral-fill ablation** (`fillReliance`),
   which can also under-report when training includes neutral
   backgrounds; plus patch-occlusion log-prob heatmaps for the curious.

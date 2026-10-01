@@ -50,12 +50,14 @@ fraction, sample budget) and retrain until the network can't cheat.
   reversal and swap evidence carry the argument.)
 - A paired opposite-cue swap on a fully cue-agreeing evaluation set —
   the identical image stream with only the cue inverted — as the
-  headline reliance measure. It is a designed controlled intervention:
-  on a set where every cue agrees, a harmful-helpful cancellation is
-  impossible by construction (the mixed-base version cancelled itself —
-  the bug independent QA caught), and measured reliance falls from 1.000
-  at rho=1.0 to ~0.006 at rho=0.5. Neutral-fill ablation and a
-  patch-occlusion heatmap remain as labelled secondary evidence.
+  headline reliance measure. The paired diagnostic starts from examples
+  whose background cue agrees with the label, then reverses only that
+  cue while preserving the shape. This removes the mixed-baseline
+  dilution found in the earlier implementation. The reported accuracy
+  change is aggregate evidence for this controlled test, not a complete
+  causal characterization of every prediction — measured reliance falls
+  from 1.000 at rho=1.0 to ~0.006 at rho=0.5. Neutral-fill ablation and
+  a patch-occlusion heatmap remain as labelled secondary evidence.
 - A redesign level where the win threshold is **derived from measured
   results**, not hard-coded.
 - Reproducible science page: a deterministic headless harness evaluates
