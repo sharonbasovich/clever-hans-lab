@@ -534,7 +534,7 @@ export function renderVerdict(session: Session, nav: Nav): void {
     <p class="lede">${c.meaning}</p>
   `;
   const notice = el('p', { class: 'note' },
-    'This demo shows the mechanism on synthetic data — it does not prove anything about a specific real-world model. We planted the cheat, so we can measure it exactly.',
+    'This demo shows the mechanism on synthetic data — it does not prove anything about a specific real-world model. We planted the cheat, so we can measure it exactly. The reliance cut-offs (≥0.25 partial, ≥0.5 shortcut) are educational design choices for this game, not validated universal thresholds.',
   );
   const refs = el('ul', { class: 'cite' });
   refs.innerHTML = `
@@ -674,8 +674,9 @@ export function renderLab(_session: Session, _nav: Nav): void {
     (() => {
       const nonDeg = R.nullControl.filter((n: { unrecovered?: boolean }) => !n.unrecovered);
       const deg = R.nullControl.filter((n: { unrecovered?: boolean }) => n.unrecovered);
-      return `<p class="lede">Null control (shuffled labels, rho=1.0): what must stay at chance is the
-      <em>shape-only</em> accuracy — a model whose labels were random cannot learn shape. Per seed
+      return `<p class="lede">Null-control sanity check (shuffled labels, rho=1.0): the probe is
+      <em>shape-only</em> accuracy — a model whose labels were random cannot learn shape, and the
+      t-check is a failure-to-reject test, not evidence of statistical equivalence. Per seed
       (non-degenerate runs only): ${nonDeg
         .map((n) => `${n.seed}→neutral ${pct(n.neutralAcc)} (matched ${pct(n.matchedAcc)}, matched+flipped ${pct(n.cueSum)})`)
         .join(', ')}; mean neutral ${pct(

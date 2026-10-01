@@ -99,10 +99,12 @@ export interface Ablation {
    *  labels and positions as the matched world. */
   accAgree: number;
   /** Accuracy on the identical image stream with EVERY cue inverted.
-   *  The agree/swap pair is the controlled opposite-cue swap: because the
-   *  base set is fully cue-agreeing, inverting the cue is strictly harmful
-   *  to a cue-user — a mixed rho<1 base set would let the swap HELP a cheat
-   *  on disagreeing images and cancel the measurement (QA round 3). */
+   *  The agree/swap pair is the controlled opposite-cue swap: starting
+   *  from cue-agreeing examples and reversing only the cue removes the
+   *  mixed-baseline dilution — a mixed rho<1 base set let the swap HELP
+   *  a cheat on disagreeing images and cancel the measurement (QA round
+   *  3). The reported change is aggregate evidence, not a complete
+   *  causal characterization of every prediction. */
   accSwap: number;
   bgDrop: number;
   fgDrop: number;

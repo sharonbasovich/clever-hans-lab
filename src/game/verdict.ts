@@ -5,9 +5,12 @@ import type { Ablation } from '../explain.ts';
 // one classifier is shared by the exam note, the quiz and the verdict screen
 // so the game can never say two different things about the same run.
 // cueReliance is measured on a FULLY cue-agreeing paired set: the identical
-// image stream with every cue inverted. Because the base set has no
-// disagreeing images, the swap is strictly harmful to a cue-user and cannot
-// cancel harmful losses against helpful swaps (the round-3 mid-rho flaw).
+// image stream with every cue inverted. The controlled set removes the
+// mixed-baseline dilution of the earlier implementation (the round-3 mid-rho
+// flaw); the reported change is aggregate evidence for this controlled test,
+// not a complete causal characterization of every prediction.
+// The reliance cut-offs (≥0.25 partial, ≥0.5 shortcut) are educational
+// design choices for this game, not validated universal thresholds.
 // Five honest outcomes:
 //   shortcut        — most of its wins die when the cue is reversed (reliance
 //                     ≥ 0.5) AND the strict-reversal gap is large.

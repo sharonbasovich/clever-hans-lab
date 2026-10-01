@@ -86,7 +86,13 @@ rho.
   detect-and-retry; main-run collapses recovered, the 4 unrecovered null
   collapses are counted and disclosed, never hidden.
 - **Determinism** — identical (seed, rho) reproduces identical metrics
-  (bit-identical under Node 22 on the native backend).
+  **within a given backend** (bit-identical under Node 22 on the native
+  backend). Different backends are not claimed to agree: borderline
+  designs can classify differently — the live default rho=0.9/
+  neutral-40% run was mixed evidence in-browser while the same seed's
+  independent headless run classified "shape"; both were internally
+  consistent. No cross-backend identical-outcome claim, no
+  real-phone validation.
 
 ### Gates (go/no-go, measured — not tuned)
 
@@ -95,7 +101,7 @@ rho.
 | G1 | Shortcut gap ≥ 15pp in every seed at rho=1.0 (CI-low ≥ 25pp) | PASS (mean 100%) |
 | G2 | rho=0.5: mean \|gap\| < 5pp and shape learned ≥ 80% | PASS |
 | G3 | paired cue-swap reliance rho=1.0 ≥ 0.8 vs rho=0.5 ≤ 0.2, sign test p<0.05 | PASS (1.000 vs 0.006) |
-| G4 | null control: mean neutral acc at chance on non-degenerate runs (one-sample t, \|t\|≤3), ≥half non-degenerate, mean cue-consistency ∈ [85%, 115%]; collapses disclosed separately | PASS (50.4%, t=0.32; 4 unrecovered) |
+| G4 | null-control sanity check: mean neutral acc consistent with chance on non-degenerate runs (one-sample t, \|t\|≤3 — a failure-to-reject check, not evidence of statistical equivalence), ≥half non-degenerate, mean cue-consistency ∈ [85%, 115%]; collapses disclosed separately | PASS (50.4%, t=0.32; 4 unrecovered) |
 | G6 | mid-strength detection: reliance clearly positive at rho=0.7 and above the rho=0.5 baseline | PASS (0.435 vs 0.006) |
 | G5 | identical (seed, rho) → identical metrics | PASS |
 
@@ -193,6 +199,9 @@ the harness only). See `THIRD_PARTY.md` for licenses.
 - Small synthetic space: some test shapes resemble training shapes. The
   flipped set shares zero geometry+cue combos with training, so the
   reversal test carries the evidence.
+- Verdict thresholds are design choices: the reliance cut-offs (≥0.25
+  "partial", ≥0.5 "shortcut") are educational choices for this game,
+  not validated universal thresholds.
 - Browser training uses the WebGL backend (CPU fallback); wall time varies
   by device. Independently measured on the live site: ~164s on the pure-JS
   CPU fallback, ~639s under a 4× CPU slowdown simulation. Phones and

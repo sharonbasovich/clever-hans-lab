@@ -20,7 +20,7 @@ jobs:
       - run: npm test
       - name: Harness smoke (1 seed, small n — gates enforced)
         run: npm run harness:smoke
-      - name: Full measured harness (18 seeds x 3 rhos + null + determinism)
+      - name: Full measured harness (25 seeds x 8 designs + null + determinism)
         run: RESULTS_OUT=results.ci.json npm run harness
       - name: Build
         run: npm run build

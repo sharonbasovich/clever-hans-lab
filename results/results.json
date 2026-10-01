@@ -4970,7 +4970,7 @@
     },
     {
       "id": "G4",
-      "name": "Null control (principled redesign): mean shuffled-label NEUTRAL acc statistically at chance on non-degenerate runs (one-sample t, |t|≤3), ≥half of nulls non-degenerate, mean cue-consistency ≈100%",
+      "name": "Null-control sanity check: mean shuffled-label NEUTRAL acc consistent with chance on non-degenerate runs (one-sample t, |t|≤3 — a failure-to-reject check, not evidence of statistical equivalence), ≥half of nulls non-degenerate, mean cue-consistency ≈100%",
       "enforced": true,
       "pass": true,
       "detail": "non-degenerate nulls: 21/25 (unrecovered collapses: 404, 707, 808, 47); per-seed neutral=55.0%, 48.0%, 44.8%, 55.3%, 50.2%, 52.0%, 49.8%, 55.0%, 44.0%, 49.8%, 49.3%, 51.7%, 51.0%, 55.3%, 44.0%, 56.3%, 65.5%, 46.3%, 45.8%, 47.0%, 42.3%; mean neutral=50.4% (t=0.32 vs 0.5, SE=1.19%); mean cue-consistency=100.7%; legacy per-seed [35,65]% bound violations (disclosed, not gated — bound is not statistically justified): seed 58313: 65.5%; diagnostics: mean matched=47.1%, mean|gap|=27.8%, max|gap|=93.8%"
@@ -4984,7 +4984,7 @@
     },
     {
       "id": "G5",
-      "name": "Reproducible: identical (seed, rho) reproduces identical metrics",
+      "name": "Reproducible within this backend: identical (seed, rho) reproduces identical metrics (no cross-backend identical-outcome claim)",
       "enforced": true,
       "pass": true,
       "detail": "repeat matched=100.0% vs first=100.0%"

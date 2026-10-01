@@ -378,7 +378,7 @@ async function main() {
     },
     {
       id: 'G4',
-      name: 'Null control (principled redesign): mean shuffled-label NEUTRAL acc statistically at chance on non-degenerate runs (one-sample t, |t|≤3), ≥half of nulls non-degenerate, mean cue-consistency ≈100%',
+      name: 'Null-control sanity check: mean shuffled-label NEUTRAL acc consistent with chance on non-degenerate runs (one-sample t, |t|≤3 — a failure-to-reject check, not evidence of statistical equivalence), ≥half of nulls non-degenerate, mean cue-consistency ≈100%',
       enforced: enforce(false),
       pass:
         // At least half the nulls must yield a trained (non-degenerate) model,
@@ -415,7 +415,7 @@ async function main() {
     },
     {
       id: 'G5',
-      name: 'Reproducible: identical (seed, rho) reproduces identical metrics',
+      name: 'Reproducible within this backend: identical (seed, rho) reproduces identical metrics (no cross-backend identical-outcome claim)',
       enforced: enforce(true),
       pass: deterministic,
       detail: `repeat matched=${fmtPct(repB.eval.matched.acc)} vs first=${fmtPct(
@@ -552,7 +552,7 @@ async function main() {
   md.push('');
   md.push('### Gate changes vs the original brief (disclosed)');
   md.push('- G3 metric: brief asked for an occlusion-heatmap sign test; we report the stronger counterfactual cue-swap reliance sign test at the original p<0.05 bar. Round 2: the metric changed from neutral-fill reliance to the PAIRED opposite-cue swap after independent QA showed neutral-fill can be dodged (models learn "neutral→shape, coloured→cheat"; fillReliance read 4.6% on a run scoring 10.3% on reversed data). The swap keeps every pixel of the shape and inverts only the cue, so it is the direct reliance measure; neutral-fill is retained as a labelled secondary diagnostic.');
-  md.push('- G4 metric, second revision (round 3): the per-seed hard bound [35,65]% on neutral accuracy is dropped as statistically unjustified — a null that memorizes noise via shape features can legitimately exceed it (QA round-3 fresh seed 58313 read 65.5%; QA\'s fresh-run mean was 53.8% with cue-consistency 105.1%). The gate is now a predeclared one-sample t-check on the MEAN neutral accuracy of NON-DEGENERATE null runs (|t|≤3, ≥half of seeds non-degenerate) plus mean cue-consistency ∈[85,115]%. Unrecovered collapses trivially sit at chance — they are excluded from the stats and disclosed separately. Prior failures retained, not erased: round-2 mean matched 39.3%, mean|gap| 35.9%, max|gap| 93.7% (old gate), seed 58313 neutral 65.5% (per-seed bound).');
+  md.push('- G4 metric, second revision (round 3): the per-seed hard bound [35,65]% on neutral accuracy is dropped as statistically unjustified — a null that memorizes noise via shape features can legitimately exceed it (QA round-3 fresh seed 58313 read 65.5%; QA\'s fresh-run mean was 53.8% with cue-consistency 105.1%). The gate is now a predeclared one-sample t-check on the MEAN neutral accuracy of NON-DEGENERATE null runs (|t|≤3, ≥half of seeds non-degenerate) plus mean cue-consistency ∈[85,115]% — a failure-to-reject sanity check: it shows no detectable deviation at this sample size, it cannot prove statistical equivalence. Unrecovered collapses trivially sit at chance — they are excluded from the stats and disclosed separately. Prior failures retained, not erased: round-2 mean matched 39.3%, mean|gap| 35.9%, max|gap| 93.7% (old gate), seed 58313 neutral 65.5% (per-seed bound).');
   md.push('- G6 (new, round 3): mid-strength designs are now in the grid ({rho,train-neutral} = 0.85/0.6, 0.7/0, 0.7/0.5, 0.6/0.5, 0.5/0.6) and the gate requires the cue-swap metric to read clearly positive reliance at rho=0.7 and strictly above the rho=0.5 baseline — the round-3 cancellation bug would have read near-chance there.');
   md.push('- Seed count: 8 → 18 (round 2: QA probe seeds pinned as regression seeds) → 25 (round 3: QA-disclosed examples 31/47/58313 as regression + four fresh seeds 42/1009/31337/777333 predeclared before measurement). Round-1 QA held-out seeds remain unused.');
   md.push('- Brief\'s perf gate (≤30s CPU train, ≤5MB bundle) is reported as targets T1/T2: the harness backend number is measured here; the bundle size is measured in CI by scripts/verify-results.ts. The 30s target fails on a pure-JS CPU backend — the UI states the real expectation instead of faking speed.');

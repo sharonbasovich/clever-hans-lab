@@ -109,7 +109,15 @@ fallback takes a few minutes per training run).
 Synthetic images by design — the cheat is planted so it can be measured
 exactly. The demonstrated gap describes this toy system, not any production
 model. At rho=0.9 the outcome is bistable across seeds (reported, not
-smoothed). See README for the full list.
+smoothed). The verdict's reliance cut-offs (≥0.25 "partial", ≥0.5
+"shortcut") are educational design choices, not validated universal
+thresholds. Reproducibility is within a given backend: identical seeds
+reproduce identical metrics on the same backend, but different backends can
+classify a borderline design differently — the live default rho=0.9/
+neutral-40% run was mixed evidence in-browser while the same seed's
+independent headless run classified "shape"; both were internally
+consistent. No cross-backend identical-outcome claim and no real-phone
+validation. See README for the full list.
 
 ## Links
 
