@@ -27,6 +27,17 @@ check(
 );
 check(R.nullControl?.length === R.config.seeds.length, 'null control ran on every seed');
 check(
+  R.runs.every(
+    (r: { accSwap?: number; cueReliance?: number | null }) =>
+      typeof r.accSwap === 'number' && 'cueReliance' in r,
+  ),
+  'paired cue-swap fields (accSwap, cueReliance) present on every run',
+);
+check(
+  R.nullControl?.every((n: { cueSum?: number; neutralAcc?: number }) => typeof n.cueSum === 'number' && typeof n.neutralAcc === 'number'),
+  'null-control cue-consistency (cueSum) + neutral accuracy present',
+);
+check(
   R.runs.every((r: { collapsed?: boolean; recovered?: boolean }) => !r.collapsed || r.recovered !== undefined),
   'collapse fields present on every run',
 );

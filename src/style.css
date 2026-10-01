@@ -218,26 +218,39 @@ table.results th { color: var(--muted); font-weight: 600; }
   font-size: 0.9rem;
 }
 
-/* In demo mode the caption bar is fixed — reserve space so it never covers
-   the content it narrates. */
-body:has(.caption-bar:not([hidden])) {
-  padding-bottom: 120px;
+/* Demo mode: the caption bar takes real layout space below the scrollable
+   app — it can never cover the content it narrates. */
+body.demo-mode {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
+body.demo-mode #app {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+body.demo-mode .site-footer { display: none; }
+body.demo-mode .site-header { position: static; }
 
 .caption-bar {
-  position: fixed;
-  left: 50%; bottom: 26px; transform: translateX(-50%);
-  max-width: min(860px, 92vw);
-  background: rgba(5, 8, 15, 0.92);
-  border: 1px solid rgba(245,196,81,0.4);
+  flex: 0 0 auto;
+  background: rgba(5, 8, 15, 0.96);
+  border-top: 1px solid rgba(245,196,81,0.4);
   color: #fff;
+  padding: 12px 22px;
+  text-align: center;
+}
+.caption-bar #caption-text {
   font-size: clamp(1rem, 2.4vw, 1.35rem);
   font-weight: 600;
-  text-align: center;
-  padding: 14px 22px;
-  border-radius: 12px;
-  z-index: 100;
-  box-shadow: var(--shadow);
+}
+.caption-bar .demo-note {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
 }
 
 .site-footer {

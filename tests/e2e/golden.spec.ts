@@ -52,8 +52,8 @@ test('golden path through all three levels', async ({ page }) => {
 
   await page.goto('/#/lab');
   await expect(page.getByRole('heading', { name: /Lab results/ })).toBeVisible();
-  // 8 seeds x 3 rhos.
-  await expect(page.locator('table.results tbody tr')).toHaveCount(24);
+  // 18 seeds x 3 rhos.
+  await expect(page.locator('table.results tbody tr')).toHaveCount(54);
   await expect(page.locator('.gate-pass').first()).toBeVisible();
 
   await page.goto('/#/teacher');
@@ -90,6 +90,39 @@ test('lifecycle: reload on result screens recovers, not blanks', async ({ page }
   await expect(page.getByRole('heading', { name: 'Three exams, one confession' })).toBeVisible({
     timeout: 180_000,
   });
+});
+
+// D3 regression: the exact round-2 QA repro — toggle Accessible cues
+// mid-run, restart, then navigate away. The superseded run's late
+// completion must never evaluate, publish results, or hijack the route.
+test('lifecycle: a11y toggle + restart + navigate-away cannot leak a stale run', async ({ page }) => {
+  await page.goto('/?fast=1#/train');
+  await page.getByRole('button', { name: 'Start training' }).click();
+
+  // Toggle Accessible cues mid-run: must cancel the in-flight run and
+  // rebuild the screen so Start is available again.
+  await page.getByRole('button', { name: 'Accessible cues' }).click();
+  const startBtn = page.getByRole('button', { name: /Start training|Retry training/ });
+  await expect(startBtn).toBeEnabled({ timeout: 30_000 });
+  await startBtn.click();
+
+  // Navigate away mid-run. The run must be cancelled; its stale completion
+  // must never evaluate or force #/exam with stale results (the D3 bug).
+  await page.evaluate(() => {
+    location.hash = '#/lab';
+  });
+  await expect(page.getByRole('heading', { name: /Lab results/ })).toBeVisible();
+
+  // Wait past the window in which a leaked run would finish and hijack the
+  // route (the bug surfaced ~3 min later at full size; fast mode is much
+  // shorter — 90 s covers it with margin).
+  await page.waitForTimeout(90_000);
+  expect(page.url()).toContain('#/lab');
+  await expect(page.getByRole('heading', { name: 'Three exams, one confession' })).toHaveCount(0);
+
+  // And the session recovers coherently: train still starts a fresh run.
+  await page.goto('/?fast=1#/train');
+  await expect(page.getByRole('button', { name: /Start training|Retry training/ })).toBeEnabled();
 });
 
 test('keyboard access and 375px width', async ({ page }) => {

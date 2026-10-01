@@ -24,7 +24,10 @@
     </header>
     <p id="aria-live" class="visually-hidden" aria-live="polite"></p>
     <main id="app" tabindex="-1"></main>
-    <div id="caption-bar" class="caption-bar" role="status" aria-live="polite" hidden></div>
+    <div id="caption-bar" class="caption-bar" role="status" aria-live="polite" hidden>
+      <div id="caption-text"></div>
+      <div class="demo-note">Demo mode — Level&nbsp;1 uses reduced data here (480&nbsp;images, 5&nbsp;epochs; the real level is 1,200&nbsp;images, 8&nbsp;epochs). Training and every number shown are real — nothing is mocked.</div>
+    </div>
     <footer class="site-footer">
       <p>
         A real neural network trains in your browser — no server, no accounts, no uploads.

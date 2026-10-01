@@ -68,12 +68,16 @@ document.getElementById('a11y-toggle')!.addEventListener('click', (e) => {
   const btn = e.currentTarget as HTMLButtonElement;
   session.accessible = !session.accessible;
   btn.setAttribute('aria-pressed', String(session.accessible));
+  // Toggling mid-run invalidates the in-flight training: its generation is
+  // superseded and it may never evaluate or navigate after completing.
+  session.cancelTraining();
   route(); // re-render current screen with the new palette
 });
 
 route();
 
 if (demo) {
+  document.body.classList.add('demo-mode');
   document.getElementById('caption-bar')!.hidden = false;
   // Let the first paint settle, then drive the scripted demo.
   setTimeout(() => runDemo(session), 800);

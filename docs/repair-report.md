@@ -1,8 +1,95 @@
-# Repair report — independent QA (Max Opus) findings at 32540b9
+# Repair report — independent QA findings
 
-Repair commit: `b5790cd` (on `main`, deployed by Pages). Every item below is
-verifiable from the commit, `results/results.{json,md}`, CI run, or the live
-site. No seed, run, or failure was dropped or hidden.
+Round 2 (below) covers the independent review at `0e4fc50`. The round-1
+report for the review at `32540b9` follows it. Every item is verifiable
+from the commit, `results/results.{json,md}`, CI, or the live site. No
+seed, run, or failure was dropped or hidden; the author's own QA
+recording is a smoke check, not independent verification — the findings
+here come from the independent reviewer.
+
+---
+
+# Round 2 — findings at 0e4fc50
+
+**D1 — neutral-fill ablation laundered a cheat (high).**
+QA showed models trained with neutral backgrounds learn
+"neutral → shape, coloured → cheat": in two 60%-neutral designs, 17/20
+runs scored <60% on fully reversed data while the fill-reliance
+diagnostic read <50% or n/a (live repro: exam 100/10.3/98.3 with
+fillReliance 4.6%). Fix: a **paired opposite-cue swap** is now the
+headline reliance measure — `generateWorld(seed, 'flipped')` regenerates
+byte-identical shapes/labels/positions with every cue inverted (the
+invariant is unit-tested), and `cueReliance = swapDrop/matchedAcc` is the
+fraction of wins that vanish. On the repro design it reads ~89.7%, not
+4.6%. Neutral-fill stays as `fillReliance`, labelled a secondary
+diagnostic that can under-report cheating. One shared classifier
+(`src/game/verdict.ts#classifyOutcome`) drives the exam note, the
+Level-2 quiz answer and the verdict screen.
+
+**D2 — exam bar vs verdict bar contradiction (high).**
+The 94.3% win target and the classifier's 90% evidence bar could disagree
+(4/70 fresh runs). Now there is exactly one classifier (shortcut / shape
+/ undertrained / inconclusive). The L3 threshold is labelled a
+**challenge target — a score bar, not a cheat detector**: missing it with
+clean evidence says "shape, below target", never implies cheating.
+
+**D3 — cancellation race (high).**
+A superseded run's unconditional `finally { trainingNow = false }`
+cleared the flag for the *current* run, so navigate-away never cancelled
+it; ~209 s later its stale completion evaluated and forced `#/exam`.
+Also, the Accessible-cues toggle never cancelled an in-flight run.
+Fix: the model trains in a local variable and is published only after an
+ownership check (`gen === runGen && !cancelled`); a superseded model is
+disposed locally; `finally` clears `trainingNow` only while still owner;
+the a11y toggle calls `cancelTraining()`. A dedicated e2e test reproduces
+the exact sequence (toggle mid-run → restart → navigate to Lab → wait
+past the stale window → assert no hijack).
+
+**D4 — G4 null gate was itself invalid (medium).**
+QA measured mean matched 39.3% (gate asked 40–60%), mean |gap| 35.9%
+(gate ≤15%), max |gap| 93.7% on fresh seeds — because a null at rho=1 can
+fit shuffled labels via the cue with an *arbitrary sign*, so matched
+accuracy and |gap| are not chance statistics. Redesigned (justification
+in `results.md` and the lab page): the gate now requires **neutral
+(shape-only) accuracy ≈ chance** on every seed (35–65%) and on the mean
+(40–60%) — shape cannot predict shuffled labels — plus mean
+cue-consistency (matched+flipped) ∈ [85,115]%. Per-seed sums are
+disclosed, not bounded (the sum is 100% only for a pure cue responder —
+seed 101 legitimately reads 128%). The old gate's failure numbers stay in
+`results.md`.
+
+**D5 — unsupported speed claims (medium).**
+"Works on a phone" / "five minutes in any classroom browser" removed
+everywhere. Published numbers are the measured ones: ~164 s on the
+pure-JS CPU fallback and ~639 s under a 4× CPU slowdown (independent
+QA's live measurements), ~1.4 s on the native harness backend.
+Phones and WebGL/GPU speed are explicitly stated as unmeasured.
+
+**D6 — demo captions covered content; demo mode undisclosed (medium).**
+The caption bar now takes real layout space (the app scrolls in its own
+region — a fixed overlay could cover content at ~11 s/24 s/44 s), and the
+video shows a persistent on-screen disclosure: "Demo mode — Level 1 uses
+reduced data (480 images, 5 epochs; the real level is 1,200/8)."
+
+**D7 — seed-count inconsistency (low).**
+Level-3 copy said "5-seed" while Lab listed 8; everything now reads the
+real count: 18 seeds (original 8 + the 10 seeds QA probed, pinned as
+disclosed regression seeds — never presented as held-out evidence).
+
+## Fresh measurements (round-2 commit)
+
+- rho=1.0: gap **100% in all 18 seeds**; cue-swap reliance 1.000.
+- rho=0.9: 16/18 shortcut (86.8–94.5%), 2/18 partial (51–65%) — disclosed.
+- rho=0.5: strict flipped 93.3–100%, gaps −1.8%…+1.5%, reliance ~0.002.
+- Null: mean neutral 50.5% (per-seed 44–55%), matched free 3.5–65%,
+  cue-consistency mean ≈100%, 6 collapse→retry recoveries.
+- Gates G1–G5 PASS; determinism confirmed; L3 bar derived at 94.5%.
+- No main-run collapse in 54 runs; unit tests 26; e2e incl. the D3
+  regression test.
+
+---
+
+# Round 1 — findings at 32540b9 (repaired at b5790cd)
 
 ## High findings
 

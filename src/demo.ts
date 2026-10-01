@@ -10,8 +10,7 @@ const click = (sel: string) =>
   (document.querySelector(`${sel}:not(.secondary)`) as HTMLElement | null)?.click();
 
 function caption(text: string, stage: string) {
-  const bar = document.getElementById('caption-bar')!;
-  bar.textContent = text;
+  document.getElementById('caption-text')!.textContent = text;
   document.body.dataset.demoStage = stage;
 }
 
@@ -40,12 +39,12 @@ export async function runDemo(session: Session): Promise<void> {
     );
     await sleep(11000 * D);
 
-    caption('Where did it look? Erase the background vs erase the shape — a counterfactual test.', 'heatmap');
+    caption('Where did it look? Edit the image and ask again — a counterfactual test.', 'heatmap');
     click('.btn'); // "Where was it looking?"
     await sleep(1000 * D);
     const ab = session.ablation!;
     caption(
-      `Erase the shape → still ${pct(ab.accNoFg)} correct. Hide the background → ${pct(ab.accNoBg)}. Its accuracy lived in the background.`,
+      `Same shapes, cue colour reversed → ${pct(ab.accSwap)} correct. Hide the background → ${pct(ab.accNoBg)}. Its answers lived in the cue.`,
       'heatmap2',
     );
     await sleep(11000 * D);
@@ -80,7 +79,7 @@ export async function runDemo(session: Session): Promise<void> {
     await sleep(8000 * D);
 
     location.hash = '#/lab';
-    caption('Reproducible: 8 seeds, per-seed results and gates, code on GitHub.', 'lab');
+    caption('Reproducible: 18 seeds, per-seed results and gates, code on GitHub.', 'lab');
     await sleep(9000 * D);
 
     location.hash = '#/teacher';

@@ -70,6 +70,34 @@ describe('generateWorld', () => {
     expect(Math.abs(empiricalCorrelation(b) - 0.5)).toBeLessThan(0.1);
   });
 
+  it('matched and flipped are pixel-paired: same shapes/labels, cue inverted', () => {
+    // The paired cue swap relies on this invariant: same seed + 'flipped'
+    // regenerates identical shapes/labels/positions with every cue reversed.
+    for (const rho of [1.0, 0.7]) {
+      const m = generateWorld({ seed: 42, n: 100, rho });
+      const f = generateWorld({ seed: 42, n: 100, rho, split: 'flipped' });
+      expect(Buffer.from(m.labels.buffer).equals(Buffer.from(f.labels.buffer))).toBe(true);
+      expect(Buffer.from(m.fgMasks.buffer).equals(Buffer.from(f.fgMasks.buffer))).toBe(true);
+      for (let i = 0; i < m.n; i++) expect(f.cue[i]).toBe(1 - m.cue[i]);
+      // Shape pixels are byte-identical; only the background carries the swap.
+      let fgIdentical = true;
+      let bgDiffers = false;
+      for (let i = 0; i < m.n && fgIdentical; i++) {
+        const off = i * IMG_PIXELS;
+        for (let p = 0; p < IMG_PIXELS; p++) {
+          for (let c = 0; c < 3; c++) {
+            const mv = m.images[(off + p) * 3 + c];
+            const fv = f.images[(off + p) * 3 + c];
+            if (m.fgMasks[off + p] === 1 && mv !== fv) fgIdentical = false;
+            if (m.fgMasks[off + p] === 0 && mv !== fv) bgDiffers = true;
+          }
+        }
+      }
+      expect(fgIdentical).toBe(true);
+      expect(bgDiffers).toBe(true);
+    }
+  });
+
   it('mixWorlds concatenates and shuffles deterministically', () => {
     const a = generateWorld({ seed: 21, n: 50, rho: 1.0 });
     const n = generateWorld({ seed: 22, n: 50, rho: 0, split: 'neutral' });

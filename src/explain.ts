@@ -1,5 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
-import { IMG_PIXELS, IMG_SIZE, type World } from './world.ts';
+import { generateWorld, IMG_PIXELS, IMG_SIZE, type World } from './world.ts';
 
 // Occlusion sensitivity: slide a grey patch over the image, measure how much
 // the model's log-probability of its top class drops per patch. Log-prob (not
@@ -93,13 +93,24 @@ export interface Ablation {
   accNoBg: number;
   /** Accuracy with the shape erased into the background (cue only). */
   accNoFg: number;
+  /** Accuracy on the SAME images with the cue colour inverted, shape
+   *  untouched — the controlled opposite-cue swap. A cheat can't dodge this
+   *  one by learning "neutral → shape, coloured → cheat". */
+  accSwap: number;
   bgDrop: number;
   fgDrop: number;
-  /** bgDrop / (bgDrop + fgDrop) in [0,1]: how much of the model's accuracy
-   *  lives in the background rather than the shape. ~1 = shortcut; ~0 = shape.
-   *  null when neither ablation cost the model anything — i.e. it learned
-   *  nothing measurable, so there is no reliance to attribute. */
-  bgReliance: number | null;
+  swapDrop: number;
+  /** swapDrop / acc in [0,1]: the fraction of matched-test wins that vanish
+   *  when the cue colour is reversed. ~1 = shortcut; ~0 = shape.
+   *  null when the model scored ~nothing — no reliance to attribute. */
+  cueReliance: number | null;
+  /** bgDrop / (bgDrop + fgDrop): the older neutral-fill reliance, kept as a
+   *  clearly separate diagnostic. It can UNDER-report cheating when training
+   *  data contains neutral backgrounds (the model learns "neutral→shape,
+   *  coloured→cheat" and fill-ablation then looks clean). */
+  fillReliance: number | null;
+  /** The cue-swapped twin world — kept for the ablation visual. */
+  swapWorld: World | null;
 }
 
 // Counterfactual ablation — the headline "did it cheat" measurement. Unlike
@@ -113,6 +124,21 @@ export function ablationReliance(model: tf.LayersModel, world: World, k = 64): A
   const n = Math.min(k, world.n);
   const noBg = new Float32Array(n * IMG_PIXELS * 3);
   const noFg = new Float32Array(n * IMG_PIXELS * 3);
+  // Paired opposite-cue swap: same seed + 'flipped' split regenerates the
+  // identical shapes with every cue inverted (matched and flipped consume the
+  // same rng draws; only the cue interpretation differs). Neutral worlds
+  // carry no cue — there is nothing to swap.
+  const swapWorld =
+    world.split === 'neutral'
+      ? null
+      : generateWorld({
+          seed: world.seed,
+          n: world.n,
+          rho: world.rho,
+          cueType: world.cueType,
+          split: 'flipped',
+          accessible: world.accessible,
+        });
   for (let i = 0; i < n; i++) {
     const img = world.images.subarray(i * IMG_PIXELS * 3, (i + 1) * IMG_PIXELS * 3);
     const mask = world.fgMasks.subarray(i * IMG_PIXELS, (i + 1) * IMG_PIXELS);
@@ -149,19 +175,29 @@ export function ablationReliance(model: tf.LayersModel, world: World, k = 64): A
   const acc = batchAcc(model, world.images, world.labels, n);
   const accNoBg = batchAcc(model, noBg, world.labels, n);
   const accNoFg = batchAcc(model, noFg, world.labels, n);
+  // The swap keeps labels: the flipped twin draws identical classes, so
+  // evaluating swapped pixels against the original labels is the
+  // opposite-cue counterfactual.
+  const accSwap = swapWorld ? batchAcc(model, swapWorld.images, world.labels, n) : acc;
   const bgDrop = Math.max(0, acc - accNoBg);
   const fgDrop = Math.max(0, acc - accNoFg);
+  const swapDrop = Math.max(0, acc - accSwap);
   const denom = bgDrop + fgDrop;
   return {
     n,
     acc,
     accNoBg,
     accNoFg,
+    accSwap,
     bgDrop,
     fgDrop,
-    // A denominator near zero means the model shrugged at both ablations —
+    swapDrop,
+    // A model that scored ~nothing has no reliance to attribute — null, not 0.
+    cueReliance: acc > 0.02 ? Math.min(1, swapDrop / acc) : null,
+    // A denominator near zero means the model shrugged at both fills —
     // it learned nothing to measure. Report null, not a fake 0.5.
-    bgReliance: denom > 0.02 ? bgDrop / denom : null,
+    fillReliance: denom > 0.02 ? bgDrop / denom : null,
+    swapWorld,
   };
 }
 

@@ -6,4 +6,5 @@ test-results
 .DS_Store
 demo-raw
 results/results.smoke.json
+results/results.ci.json
 *.webm

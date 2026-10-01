@@ -141,7 +141,16 @@ export class Session {
 
   /** Train once, with collapse detection and at most one deterministic
    *  reinit-and-retry. Returns null when the run was cancelled or superseded
-   *  — callers must NOT navigate or mutate UI on a null result. */
+   *  — callers must NOT navigate or mutate UI on a null result.
+   *
+   *  Ownership rules (a superseded run must never touch shared state):
+   *  - the model trains in a LOCAL variable and is only published to
+   *    this.model / this.history after an ownership check;
+   *  - a superseded model is disposed locally, never via this.model (that
+   *    pointer may already belong to the newer run);
+   *  - `finally` clears trainingNow only while still the owner — an older
+   *    run resolving late must not mark the current run finished, which
+   *    would leave it uncancellable on navigate-away. */
   async train(opts: Partial<TrainOptions> = {}): Promise<TrainHistory | null> {
     if (!this.trainWorld) throw new Error('build a world first');
     const gen = ++this.runGen;
@@ -151,12 +160,13 @@ export class Session {
     this.trainingNow = true;
     this.retriedAfterCollapse = false;
     this.stillCollapsed = false;
+    const isOwner = () => gen === this.runGen && !flag.cancelled;
     try {
       for (let attempt = 0; attempt < 2; attempt++) {
+        if (!isOwner()) return null;
         if (attempt > 0) this.retriedAfterCollapse = true;
-        this.model?.dispose();
-        this.model = buildModel(this.seed + attempt * 7919);
-        this.history = await trainModel(this.model, this.trainWorld, {
+        const model = buildModel(this.seed + attempt * 7919);
+        const history = await trainModel(model, this.trainWorld, {
           epochs: this.epochs(),
           batchSize: 64,
           learningRate: LEARNING_RATE,
@@ -164,13 +174,19 @@ export class Session {
           signal: flag,
           ...opts,
         });
-        if (flag.cancelled || gen !== this.runGen) return null;
+        if (!isOwner()) {
+          model.dispose();
+          return null;
+        }
+        this.model?.dispose();
+        this.model = model;
+        this.history = history;
         if (!isConstantPredictor(this.model, this.trainWorld)) break;
         if (attempt === 1) this.stillCollapsed = true;
       }
       return this.history;
     } finally {
-      this.trainingNow = false;
+      if (gen === this.runGen) this.trainingNow = false;
     }
   }
 

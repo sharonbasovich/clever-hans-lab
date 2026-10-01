@@ -32,10 +32,10 @@ dataset of shapes where background colour perfectly predicts the label
 (red↔circle, blue↔triangle). A real convolutional network trains in your
 browser — live loss curve, real gradients, no mocks. It aces the matched
 test. Then you flip the colours and it collapses to ~0%: it never learned
-shape at all. A counterfactual ablation proves it: erase the shape and it
-still scores ~100%; blank the background and it falls to chance. In the last
-level you redesign the training data (cue strength, neutral fraction, sample
-budget) and retrain until the network can't cheat.
+shape at all. A paired cue swap proves it: show the *same* images with
+only the cue colour inverted and the model's correct answers vanish.
+In the last level you redesign the training data (cue strength, neutral
+fraction, sample budget) and retrain until the network can't cheat.
 
 ## Key features
 
@@ -43,14 +43,16 @@ budget) and retrain until the network can't cheat.
   with the measured loss curve — nothing is faked or canned.
 - Three held-out exams: matched / flipped / neutral — the gap is the
   confession.
-- Counterfactual ablation (erase shape vs. hide background) plus a
-  patch-occlusion heatmap as supporting evidence.
+- A paired opposite-cue swap — identical images, only the cue colour
+  reversed — as the headline reliance measure (a cheat can't dodge it by
+  learning "neutral → shape, coloured → cheat"), plus neutral-fill
+  ablation and a patch-occlusion heatmap as labelled secondary evidence.
 - A redesign level where the win threshold is **derived from measured
   results**, not hard-coded.
-- Reproducible science page: a deterministic headless harness evaluates 8
-  seeds × 3 cue strengths against a strict full reversal, plus a per-seed
-  shuffled-label null control, with bootstrap CIs and pass/fail gates —
-  all committed to the repo and re-verified in CI.
+- Reproducible science page: a deterministic headless harness evaluates
+  18 seeds × 3 cue strengths against a strict full reversal, plus a
+  per-seed shuffled-label null control, with bootstrap CIs and pass/fail
+  gates — all committed to the repo and re-verified in CI.
 - The verdict is derived from measured evidence, not scripted: shortcut,
   honest, undertrained, and inconclusive outcomes each get their own
   report. A collapsed training run is detected, retried transparently,
@@ -58,7 +60,10 @@ budget) and retrain until the network can't cheat.
 - Accessible: full keyboard play, aria-live results, canvas text
   alternatives, reduced-motion, and a colour-independent cue mode
   (stripes + brightness, not hue).
-- Free, no login, no backend — works on a phone.
+- Free, no login, no backend — a fully static site. Browser wall time
+  measured on the live deployment: ~164 s on the pure-JS CPU fallback
+  (~639 s under a 4× CPU slowdown simulation). Phones and GPU/WebGL
+  speed were not measured — no claim is made about them.
 
 ## Technologies
 
@@ -66,7 +71,7 @@ Vite + TypeScript + TensorFlow.js (WebGL, CPU fallback). Fully static —
 no accounts, no backend, no API keys. Deterministic evaluation via
 `@tensorflow/tfjs-node`; Playwright for the e2e tests and the captioned
 demo video; GitHub Actions CI (lint, typecheck, unit tests, smoke + FULL
-8-seed measured harness, build, results verification, e2e incl. lifecycle
+18-seed measured harness, build, results verification, e2e incl. lifecycle
 and 375px); deployed on GitHub Pages.
 
 ## Target users
@@ -79,8 +84,9 @@ and anyone who evaluates models by test accuracy alone.
 
 Shortcut learning is the mechanism behind many real AI harms — models that
 are accurate on test data and wrong in the world. You can't fix what you
-can't see. Clever Hans Lab makes the failure *visceral and reproducible* in
-five minutes, for free, in any classroom browser.
+can't see. Clever Hans Lab makes the failure *visceral and reproducible* —
+free, zero-install, and honest about its own speed (the measured CPU
+fallback takes a few minutes per training run).
 
 ## Limitations
 
@@ -93,7 +99,9 @@ smoothed). See README for the full list.
 
 - Live demo: https://sharonbasovich.github.io/clever-hans-lab/
 - Source + measured results: https://github.com/sharonbasovich/clever-hans-lab
-- Demo video (~2min, captioned, real training): `demo/demo.mp4` in the repo
+- Demo video (~2min, captioned, real training — the on-screen disclosure
+  states it runs on reduced data, 480 images / 5 epochs): `demo/demo.mp4`
+  in the repo
 
 ## Screenshots (5)
 
