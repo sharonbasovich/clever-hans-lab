@@ -191,7 +191,13 @@ for (const c of OUTCOME_CASES) {
 
     // Inject the measured evidence for this outcome and re-render each screen.
     await page.evaluate((c) => {
-      const s = (window as unknown as { __chlSession: any }).__chlSession;
+      const s = (window as unknown as { __chlSession: Record<string, unknown> })
+        .__chlSession as {
+        evaluation: unknown;
+        ablation: unknown;
+        stillCollapsed: boolean;
+        bgMass: number;
+      };
       const m = (acc: number, split: string) => ({ split, n: 100, correct: acc, acc });
       s.evaluation = {
         matched: m(c.ev.matched, 'matched'),
