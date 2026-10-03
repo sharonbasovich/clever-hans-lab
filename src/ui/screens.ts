@@ -28,9 +28,9 @@ export function renderIntro(session: Session, nav: Nav): void {
     <h1>Clever Hans Lab</h1>
     <p class="hook">1907: a horse "did maths" by reading his trainer's face.<br>
     Today: your neural network is about to pull the same trick — and you'll catch it.</p>
-    <p class="sub">You will plant a cheat in a synthetic dataset, watch a real CNN exploit it
-    on its own exam, prove it by erasing the evidence, then redesign the data until it can't cheat.
-    Everything trains in your browser. Nothing is faked.</p>
+    <p class="sub">Plant a shortcut in a synthetic dataset and train a real CNN in your browser.
+    Reverse the cue while preserving the shapes, compare the measured results, then redesign
+    the training data and test again. Outcomes can vary; the experiment makes that visible.</p>
   `;
   wrap.append(
     el('div', { class: 'btn-row' },
