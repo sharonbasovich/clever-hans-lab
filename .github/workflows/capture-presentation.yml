@@ -24,13 +24,17 @@ jobs:
       - run: npm ci
       - run: npm run lint && npm run typecheck && npm test && npm run build
       - run: npx playwright install --with-deps chromium
+      - name: Install media conversion tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Capture unchanged genuine demo flow
         run: |
           npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/clever-hans-preview.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+          rm -f demo/demo.mp4
           npm run demo 2>&1 | tee presentation-capture/record-demo.log
           grep -q 'stage shots: build, exam, heatmap2, l3exam, lab' presentation-capture/record-demo.log
           ! grep -q 'demo ended in stage' presentation-capture/record-demo.log
+          test demo/demo.mp4 -nt presentation-capture/capture-commit.txt
           cp demo/demo.mp4 presentation-capture/demo.mp4
           cp -r demo/shots presentation-capture/shots
           ffprobe -v error -show_format -show_streams -of json presentation-capture/demo.mp4 > presentation-capture/media-probe.json
