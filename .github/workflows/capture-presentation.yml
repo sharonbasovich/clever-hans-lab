@@ -1,0 +1,54 @@
+name: Capture Clever Hans presentation (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    if: github.repository == 'sharonbasovich/clever-hans-lab'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Record capture provenance
+        run: |
+          mkdir -p presentation-capture
+          git rev-parse HEAD > presentation-capture/capture-commit.txt
+          git ls-files -z src scripts/record-demo.ts package.json package-lock.json | xargs -0 sha256sum > presentation-capture/source-sha256.txt
+      - run: npm ci
+      - run: npm run lint && npm run typecheck && npm test && npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Capture unchanged genuine demo flow
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/clever-hans-preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+          npm run demo 2>&1 | tee presentation-capture/record-demo.log
+          grep -q 'stage shots: build, exam, heatmap2, l3exam, lab' presentation-capture/record-demo.log
+          ! grep -q 'demo ended in stage' presentation-capture/record-demo.log
+          cp demo/demo.mp4 presentation-capture/demo.mp4
+          cp -r demo/shots presentation-capture/shots
+          ffprobe -v error -show_format -show_streams -of json presentation-capture/demo.mp4 > presentation-capture/media-probe.json
+      - name: Preserve terminal receipt and partial evidence
+        if: always()
+        env:
+          CAPTURE_JOB_STATUS: ${{ job.status }}
+        run: |
+          mkdir -p presentation-capture
+          printf '%s\n' "$CAPTURE_JOB_STATUS" > presentation-capture/job-status.txt
+          cp /tmp/clever-hans-preview.log presentation-capture/preview.log 2>/dev/null || true
+          cp -r demo/video presentation-capture/partial-video 2>/dev/null || true
+          cp demo/demo.webm presentation-capture/demo.webm 2>/dev/null || true
+          mkdir -p presentation-capture/shots
+          cp -r demo/shots/. presentation-capture/shots/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clever-hans-presentation-capture
+          path: presentation-capture/
+          retention-days: 7
