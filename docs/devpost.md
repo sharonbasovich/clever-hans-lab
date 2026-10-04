@@ -14,7 +14,7 @@ cues in his trainer's face. Today's neural networks pull the same trick: a
 "wolf" classifier that learned snow, a pneumonia model that learned a hospital
 watermark. Clever Hans Lab lets you *feel* that failure mode instead of
 reading about it — a game where **you** plant the cheat, watch a real neural
-network exploit it, and then have to fix the data so it can't.
+network exploit it, then redesign the data and test which cues it relies on.
 
 ## Problem
 
@@ -37,7 +37,7 @@ the cue, not the shape. A paired cue swap is the controlled intervention:
 show the *same* images with only the cue colour inverted and its correct
 answers drop.
 In the last level you redesign the training data (cue strength, neutral
-fraction, sample budget) and retrain until the network can't cheat.
+fraction, sample budget), retrain, and test which cues the model relies on.
 
 ## Key features
 
