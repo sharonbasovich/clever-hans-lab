@@ -4,14 +4,17 @@ A browser game that teaches neural-network **shortcut learning** by letting you
 commit the crime yourself. You plant a cheat in a synthetic dataset (every
 circle sits on red, every triangle on blue), train a *real* convolutional
 network in your browser, watch it ace the test — then flip the colours and
-watch it collapse. In the final level you redesign the training data so the
-model is forced to learn shape.
+watch it collapse. In the final level you redesign the training data, retrain, and test which cues
+the model relies on.
 
 No mocked training, no fabricated accuracy. Every number on screen comes from
 live TensorFlow.js inference or from `results/results.json`, which the
 deterministic headless harness regenerates.
 
 **Live demo:** https://sharonbasovich.github.io/clever-hans-lab/
+
+**Corrected video:** https://youtu.be/GRavNWVOEC4 (93 seconds; two training waits shortened and labelled).
+[Capture and edit provenance](docs/presentation-refresh-20261004.md). The original video remains preserved.
 
 Built for the ML Empowerment Build Challenge 3.0. Entrant: Sharon
 Basovich (University of Waterloo); team membership beyond the entrant
