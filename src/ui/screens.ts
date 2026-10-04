@@ -567,7 +567,7 @@ export function renderL3(session: Session, nav: Nav): void {
   const panel = el('section', { class: 'panel' });
   panel.innerHTML = `
     <p class="kicker">Level 3 · Fix the data</p>
-    <h2>Design the training set so it can't cheat</h2>
+    <h2>Redesign the data, then test which cues the model relies on.</h2>
     <p class="lede">You control two levers inside a budget of ${L3.budget} images.
     Challenge target: flipped-test accuracy ≥ <strong>${pct(L3_FLIPPED_THRESHOLD)}</strong> —
     the level a debiased model reaches in our lab run (see Lab results). The target is a
