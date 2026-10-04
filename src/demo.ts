@@ -49,7 +49,7 @@ export async function runDemo(session: Session): Promise<void> {
     );
     await sleep(11000 * D);
 
-    caption('Your job: design the data so it can\'t cheat.', 'l3');
+    caption('Redesign the data, then test which cues the model relies on.', 'l3');
     click('.btn'); // heatmap -> verdict
     await sleep(2500 * D);
     click('.btn'); // verdict -> L3
