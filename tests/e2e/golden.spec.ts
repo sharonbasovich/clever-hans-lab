@@ -42,7 +42,7 @@ test('golden path through all three levels', async ({ page }) => {
   await expect(page.locator('h2')).toContainText(/Guilty|Partly|Honest|Inconclusive/);
   await page.getByRole('button', { name: /Level 3 — fix the data/ }).click();
 
-  await expect(page.getByRole('heading', { name: "Design the training set so it can't cheat" })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Redesign the data, then test which cues the model relies on.' })).toBeVisible();
   await expect(page.locator('input[type=range]')).toHaveCount(2);
   await page.getByRole('button', { name: 'Retrain on my data →' }).click();
   await page.getByRole('button', { name: 'Start training' }).click();
@@ -278,7 +278,7 @@ test('route context: direct #/l3 entry sets Level 3 context', async ({ page }) =
   // left session.level at 1, so later screens kept the 'Levels 1–2' context.
   await page.goto('/?fast=1#/l3');
   await expect(
-    page.getByRole('heading', { name: 'Design the training set so it' }),
+    page.getByRole('heading', { name: 'Redesign the data, then test which cues the model relies on.' }),
   ).toBeVisible();
   await expect(page.locator('.lede').first()).toContainText(/Challenge target/);
 
