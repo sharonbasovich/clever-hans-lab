@@ -3,7 +3,7 @@ import { occlusionMap } from '../explain.ts';
 import { L3, L3_FLIPPED_THRESHOLD, RESULTS } from '../game/levels.ts';
 import type { Session } from '../game/session.ts';
 import { classifyOutcome } from '../game/verdict.ts';
-import { IMG_PIXELS } from '../world.ts';
+import { IMG_PIXELS, type World } from '../world.ts';
 import { announce, describeImage, drawAblation, drawHeatmap, drawImage, drawLossChart, el, pct } from './dom.ts';
 import { hansSvg } from './hans.ts';
 
@@ -130,9 +130,10 @@ export function renderTrain(session: Session, nav: Nav): void {
     el('p', { class: 'hint' },
       `Backend: ${backend}. Measured on the live site: ~164 s on the pure-JS CPU fallback, ~639 s under a 4× CPU slowdown — the progress bar is real. Other devices and backends were not formally measured.`),
   );
-  const t0 = performance.now();
-
   startBtn.addEventListener('click', async () => {
+    // Each user-started attempt owns its timer, including a retry after failure.
+    // Reading this screen before clicking Start is not training time.
+    const t0 = performance.now();
     startBtn.disabled = true;
     startBtn.textContent = 'Training…';
     const losses: number[] = [];
@@ -162,9 +163,9 @@ export function renderTrain(session: Session, nav: Nav): void {
       });
       // null = cancelled or superseded (user navigated away): do nothing.
       if (history === null) return;
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
       session.evaluate();
       session.explain();
-      const secs = ((performance.now() - t0) / 1000).toFixed(1);
       announce(`Training done in ${secs}s. Matched accuracy ${pct(session.evaluation!.matched.acc)}, flipped ${pct(session.evaluation!.flipped.acc)}.`);
       if (location.hash === '#/train') nav('exam');
     } catch (err) {
@@ -315,36 +316,65 @@ export function renderHeatmap(session: Session, nav: Nav): void {
     edit them and measure what the model still gets right — on ${ab.n} held-out images.</p>
   `;
 
-  // Four-panel counterfactual: original | cue-swap | hide background | erase shape.
-  const tri = el('div', { class: 'exam-grid' });
-  const mkCard = (title: string, mode: 'img' | 'swap' | 'noBg' | 'noFg', acc: number, note: string) => {
-    const card = el('div', { class: 'exam-card' });
-    const c = el('canvas', { role: 'img', style: 'width:100%;max-width:180px;border-radius:8px' });
-    if (mode === 'img') drawImage(c, world, idx, 6);
-    else if (mode === 'swap') drawImage(c, ab.swapWorld ?? world, idx, 6);
-    else drawAblation(c, world, idx, mode, 6);
-    c.setAttribute(
-      'aria-label',
-      mode === 'noBg'
-        ? 'Test image with the entire background greyed out'
+  const mkCard = (title: string, source: World | null, mode: 'img' | 'noBg' | 'noFg', acc: number, note: string) => {
+    const card = el('div', { class: 'exam-card diagnostic-card' });
+    card.append(el('h3', { class: 'name' }, title));
+    if (source) {
+      const c = el('canvas', { role: 'img', class: 'diagnostic-example' });
+      if (mode === 'img') drawImage(c, source, idx, 6);
+      else drawAblation(c, source, idx, mode, 6);
+      c.setAttribute('aria-label', mode === 'noBg'
+        ? 'Example test image with the entire background greyed out'
         : mode === 'noFg'
-          ? 'Test image with the shape erased into the background colour'
-          : mode === 'swap'
-            ? 'The same test image with the cue colour reversed, shape untouched'
-            : 'Original test image',
+          ? 'Example test image with the shape erased into the background colour'
+          : `${title}: example ${source.labels[idx] === 0 ? 'circle' : 'triangle'}, cue ${source.cue[idx] === source.labels[idx] ? 'agrees with' : 'disagrees with'} the shape label`);
+      card.append(el('figure', {}, c, el('figcaption', {}, 'Example image; no individual prediction shown')));
+    } else {
+      card.append(el('p', { class: 'desc' }, 'Paired example unavailable for this run. Retrain to generate the comparison.'));
+    }
+    card.append(
+      el('div', { class: 'big', style: `color:${acc < 0.6 ? 'var(--danger)' : 'var(--accent-2)'}` }, pct(acc)),
+      el('div', { class: 'desc' }, `Aggregate accuracy on ${ab.n} held-out images`),
+      el('p', { class: 'desc' }, note),
     );
-    card.append(c, el('div', { class: 'name', style: 'margin-top:8px' }, title));
-    if (acc >= 0) card.append(el('div', { class: 'big', style: `font-size:1.7rem;color:${acc < 0.6 ? 'var(--danger)' : 'var(--accent-2)'}` }, pct(acc)));
-    card.append(el('div', { class: 'desc' }, note));
     return card;
   };
-  tri.append(
-    mkCard('Original', 'img', ab.acc, 'Model accuracy on untouched matched tests.'),
-    mkCard('Swap the cue', 'swap', ab.accSwap, `Identical image stream, every cue agreeing (${pct(ab.accAgree)}), then every cue inverted — the reliance test a cheat can neither dodge nor cancel.`),
-    mkCard('Hide the background', 'noBg', ab.accNoBg, 'Same images, background → grey. A separate fill diagnostic.'),
-    mkCard('Erase the shape', 'noFg', ab.accNoFg, 'Same images, shape → background colour. Only the cue is left.'),
+
+  // These are the exact worlds evaluated by the controlled agree/swap test.
+  // A mixed-rho matched world is NOT the cue-agreeing baseline.
+  const pair = el('div', { class: 'cue-pair', id: 'cue-pair', 'data-emphasis': 'agree' });
+  pair.append(
+    mkCard('Cue agrees', ab.agreeWorld, 'img', ab.accAgree, 'Every cue agrees with the shape label.'),
+    mkCard('Cue reversed', ab.swapWorld, 'img', ab.accSwap, 'Every cue is inverted; the shapes stay identical.'),
   );
-  panel.append(tri);
+  const emphasis = el('p', { class: 'cue-emphasis', role: 'status' }, 'Emphasizing: cue agrees');
+  const swapBtn = el('button', {
+    class: 'cue-toggle', 'aria-controls': 'cue-pair', 'aria-pressed': 'false',
+  }, 'Swap cue');
+  swapBtn.disabled = !ab.agreeWorld || !ab.swapWorld;
+  swapBtn.addEventListener('click', () => {
+    const reversed = pair.dataset.emphasis !== 'swap';
+    pair.dataset.emphasis = reversed ? 'swap' : 'agree';
+    swapBtn.setAttribute('aria-pressed', String(reversed));
+    swapBtn.textContent = reversed ? 'Show original' : 'Swap cue';
+    emphasis.textContent = `Emphasizing: ${reversed ? 'cue reversed' : 'cue agrees'}`;
+  });
+  panel.append(
+    el('h3', {}, 'Same shapes. Only the cue changes.'),
+    el('p', { class: 'lede' }, 'Compare the same example in both worlds. The percentages summarize the full tested sets, not this individual image.'),
+    el('div', { class: 'cue-controls' }, swapBtn, emphasis),
+    pair,
+  );
+
+  const diagnostics = el('details', { class: 'fill-diagnostics' });
+  const secondary = el('div', { class: 'exam-grid' });
+  secondary.append(
+    mkCard('Original matched tests', world, 'img', ab.acc, 'Model accuracy on untouched matched tests; cue agreement follows this world’s rho.'),
+    mkCard('Hide the background', world, 'noBg', ab.accNoBg, 'Same matched images, background filled grey. A separate fill diagnostic.'),
+    mkCard('Erase the shape', world, 'noFg', ab.accNoFg, 'Same matched images, shape filled with background colour. Only the cue is left.'),
+  );
+  diagnostics.append(el('summary', {}, 'Matched tests and fill diagnostics'), secondary);
+  panel.append(diagnostics);
 
   const reliancePct = ab.cueReliance === null ? 'n/a' : pct(ab.cueReliance);
   const fillPct = ab.fillReliance === null ? 'n/a' : pct(ab.fillReliance);

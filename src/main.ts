@@ -34,7 +34,11 @@ const routes: Record<string, () => void> = {
   teacher: () => renderTeacher(session, nav),
 };
 
+let requestedStage: string | null = null;
+
 function nav(screen: string) {
+  if (location.hash === `#/${screen}`) return;
+  requestedStage = screen;
   location.hash = `#/${screen}`;
 }
 
@@ -42,6 +46,8 @@ const NEEDS_EVAL = new Set(['exam', 'heatmap', 'verdict']);
 
 function route() {
   let screen = location.hash.replace(/^#\//, '') || 'intro';
+  const forwardStage = requestedStage === screen;
+  requestedStage = null;
 
   // Leaving the train screen cancels the run — a stale completion can never
   // hijack navigation later.
@@ -68,6 +74,13 @@ function route() {
   }
 
   (routes[screen] ?? routes.intro)();
+  // In-app stage buttons start the new stage at its heading. Hash navigation
+  // from Back/Forward keeps the browser's normal scroll restoration, and
+  // re-rendering a state (e.g. Accessible cues) never resets the viewport.
+  if (forwardStage) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.getElementById('app')!.scrollTop = 0; // demo's scroll container
+  }
 }
 window.addEventListener('hashchange', route);
 

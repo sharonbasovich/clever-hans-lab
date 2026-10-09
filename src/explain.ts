@@ -120,7 +120,9 @@ export interface Ablation {
    *  data contains neutral backgrounds (the model learns "neutral→shape,
    *  coloured→cheat" and fill-ablation then looks clean). */
   fillReliance: number | null;
-  /** The cue-swapped twin world — kept for the ablation visual. */
+  /** The existing fully cue-agreeing baseline - kept for the paired visual. */
+  agreeWorld: World | null;
+  /** The cue-swapped twin world - kept for the ablation visual. */
   swapWorld: World | null;
 }
 
@@ -224,6 +226,7 @@ export function ablationReliance(model: tf.LayersModel, world: World, k = 64): A
     // A denominator near zero means the model shrugged at both fills —
     // it learned nothing to measure. Report null, not a fake 0.5.
     fillReliance: denom > 0.02 ? bgDrop / denom : null,
+    agreeWorld,
     swapWorld,
   };
 }
