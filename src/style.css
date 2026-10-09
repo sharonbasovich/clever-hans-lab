@@ -292,6 +292,12 @@ body.demo-mode .site-header { position: static; }
   .hero .hans { width: 220px; }
 }
 
+/* At high browser zoom, a wrapped sticky header can cover Tab-focused
+   controls. Let it scroll away when the viewport has little vertical room. */
+@media (max-height: 400px) {
+  .site-header { position: static; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
