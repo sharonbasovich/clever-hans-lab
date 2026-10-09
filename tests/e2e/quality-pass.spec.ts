@@ -6,6 +6,7 @@ declare global {
     __chlSession: Session;
     __testNow: number;
     __testAnnouncements: string[];
+    __cancelCalls: { train: number; evaluate: number; explain: number };
   }
 }
 
@@ -61,13 +62,16 @@ test('cancelled completion never evaluates or announces a training duration', as
   await expect(page.getByRole('button', { name: 'Start training' })).toBeEnabled();
   await page.evaluate(() => {
     const s = window.__chlSession;
-    s.train = async () => null;
-    s.evaluate = () => { throw new Error('Cancelled run must not evaluate'); };
-    s.explain = () => { throw new Error('Cancelled run must not explain'); };
+    const calls = window.__cancelCalls = { train: 0, evaluate: 0, explain: 0 };
+    s.train = async () => { calls.train++; return null; };
+    s.evaluate = () => { calls.evaluate++; throw new Error('Cancelled run must not evaluate'); };
+    s.explain = () => { calls.explain++; throw new Error('Cancelled run must not explain'); };
   });
   await page.getByRole('button', { name: 'Start training' }).click();
+  await expect.poll(() => page.evaluate(() => window.__cancelCalls)).toEqual({ train: 1, evaluate: 0, explain: 0 });
   await expect(page.locator('#aria-live')).not.toContainText('Training done');
   await expect(page.getByRole('heading', { name: /Train a real CNN/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry training' })).toHaveCount(0);
 });
 
 test('mixed-rho comparison, repeated keyboard toggle, reduced motion, mobile and forward-stage focus', async ({ page }, testInfo) => {
@@ -163,6 +167,17 @@ test('mixed-rho comparison, repeated keyboard toggle, reduced motion, mobile and
   await expect(page.locator('#app')).toBeFocused();
   expect(await page.evaluate(() => document.querySelector('h2')!.getBoundingClientRect().top >= document.querySelector('.site-header')!.getBoundingClientRect().bottom)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('verdict-mobile.png') });
+  // Browser Forward restores the verdict's own position, not the app's
+  // stage-button reset. Keep a nonzero position so a reset cannot pass.
+  await page.evaluate(() => { window.scrollTo(0, 180); });
+  const verdictScroll = await page.evaluate(() => scrollY);
+  expect(verdictScroll).toBeGreaterThan(0);
+  await page.goBack();
+  await expect(pair).toBeVisible();
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(priorStageScroll);
+  await page.goForward();
+  await expect(page.locator('h2')).toContainText(/Guilty|Partly|Honest|Inconclusive/);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(verdictScroll);
   await page.goBack();
   await expect(pair).toBeVisible();
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(priorStageScroll);
