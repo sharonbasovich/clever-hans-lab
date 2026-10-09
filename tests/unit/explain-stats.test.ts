@@ -1,8 +1,8 @@
 import * as tf from '@tensorflow/tfjs';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { bgMass, occlusionMap } from '../../src/explain.ts';
+import { ablationReliance, bgMass, occlusionMap } from '../../src/explain.ts';
 import { bootstrapCI, signTest } from '../../src/stats.ts';
-import { IMG_PIXELS, IMG_SIZE } from '../../src/world.ts';
+import { generateWorld, IMG_PIXELS, IMG_SIZE } from '../../src/world.ts';
 
 beforeAll(async () => {
   await tf.setBackend('cpu');
@@ -64,6 +64,45 @@ describe('occlusionMap', () => {
     expect(bgMass(heatBg, fg)).toBe(1);
     expect(bgMass(heatFg, fg)).toBe(0);
     expect(bgMass(new Float32Array(IMG_PIXELS), fg)).toBe(0);
+  });
+});
+
+describe('paired presentation worlds', () => {
+  it.each([false, true])('exposes the evaluated baseline at mixed rho (accessible=%s)', (accessible) => {
+    const world = generateWorld({ seed: 1002, n: 32, rho: 0.5, accessible });
+    // A known cue reader: the top-left pixel has no shape and red means circle.
+    const model = tf.sequential();
+    model.add(tf.layers.flatten({ inputShape: [IMG_SIZE, IMG_SIZE, 3] }));
+    model.add(tf.layers.dense({ units: 2, useBias: false }));
+    const weights = tf.buffer([IMG_PIXELS * 3, 2]);
+    weights.set(1, 0, 0);
+    weights.set(1, 2, 1);
+    const kernel = weights.toTensor();
+    model.layers[1].setWeights([kernel]);
+    kernel.dispose();
+    try {
+      const ab = ablationReliance(model, world, 32);
+      const agree = ab.agreeWorld!;
+      const swap = ab.swapWorld!;
+      expect(ab.accAgree).toBe(1);
+      expect(ab.accSwap).toBe(0);
+      expect(ab.acc).toBeGreaterThan(0);
+      expect(ab.acc).toBeLessThan(1);
+      expect(agree.labels).toEqual(swap.labels);
+      expect(agree.fgMasks).toEqual(swap.fgMasks);
+      expect(agree.fgMasks).toEqual(world.fgMasks);
+      for (let i = 0; i < world.n; i++) {
+        expect(agree.cue[i]).toBe(agree.labels[i]);
+        expect(swap.cue[i]).toBe(1 - agree.cue[i]);
+        for (let p = 0; p < IMG_PIXELS; p++) {
+          if (agree.fgMasks[i * IMG_PIXELS + p] !== 1) continue;
+          const off = (i * IMG_PIXELS + p) * 3;
+          expect(agree.images.subarray(off, off + 3)).toEqual(swap.images.subarray(off, off + 3));
+        }
+      }
+    } finally {
+      model.dispose();
+    }
   });
 });
 

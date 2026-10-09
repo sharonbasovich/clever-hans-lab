@@ -22,6 +22,7 @@ const ab = (over: Partial<Ablation>): Ablation => ({
   swapDrop: 0,
   cueReliance: 0,
   fillReliance: 0,
+  agreeWorld: null,
   swapWorld: null,
   ...over,
 });

@@ -217,6 +217,7 @@ for (const c of OUTCOME_CASES) {
         swapDrop: c.ab.accAgree - c.ab.accSwap,
         cueReliance: c.ab.cueReliance,
         fillReliance: c.ab.fillReliance,
+        agreeWorld: null,
         swapWorld: null,
       };
       s.stillCollapsed = false;
@@ -306,7 +307,7 @@ test('route context: direct #/l3 entry sets Level 3 context', async ({ page }) =
     s.ablation = {
       n: 100, acc: 0.97, accNoBg: 0.9, accNoFg: 0.5, accAgree: 0.97,
       accSwap: 0.95, bgDrop: 0.1, fgDrop: 0.4, swapDrop: 0.02,
-      cueReliance: 0.02, fillReliance: 0.1, swapWorld: null,
+      cueReliance: 0.02, fillReliance: 0.1, agreeWorld: null, swapWorld: null,
     };
     s.stillCollapsed = false;
     s.bgMass = 0.2;
